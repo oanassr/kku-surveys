@@ -199,34 +199,36 @@ export default function IndicatorsManager() {
         ))}
       </div>
 
-      <Modal open={modal} onClose={() => setModal(false)} title={lang === 'ar' ? 'مؤشر جديد' : 'New indicator'}>
+      <Modal open={modal} onClose={() => setModal(false)} title={lang === 'ar' ? 'مؤشر جديد' : 'New indicator'} size="lg">
         <div className="space-y-4">
-          <Field label={lang === 'ar' ? 'النوع' : 'Kind'} required>
-            <Select
-              value={form.kind}
-              onChange={(e) => setForm({ ...form, kind: e.target.value as IndicatorKind })}
-            >
-              {KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {lang === 'ar' ? KIND_LABEL[k].ar : KIND_LABEL[k].en}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={lang === 'ar' ? 'الرمز (اختياري)' : 'Code (optional)'}>
-            <Input
-              dir="ltr"
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-              placeholder="KPI-1"
-            />
-          </Field>
-          <Field label={lang === 'ar' ? 'الاسم (عربي)' : 'Name (Arabic)'} required>
-            <Input value={form.name_ar} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} />
-          </Field>
-          <Field label={lang === 'ar' ? 'الاسم (إنجليزي)' : 'Name (English)'}>
-            <Input dir="ltr" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={lang === 'ar' ? 'النوع' : 'Kind'} required>
+              <Select
+                value={form.kind}
+                onChange={(e) => setForm({ ...form, kind: e.target.value as IndicatorKind })}
+              >
+                {KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {lang === 'ar' ? KIND_LABEL[k].ar : KIND_LABEL[k].en}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={lang === 'ar' ? 'الرمز (اختياري)' : 'Code (optional)'}>
+              <Input
+                dir="ltr"
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+                placeholder="KPI-1"
+              />
+            </Field>
+            <Field label={lang === 'ar' ? 'الاسم (عربي)' : 'Name (Arabic)'} required>
+              <Input value={form.name_ar} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} />
+            </Field>
+            <Field label={lang === 'ar' ? 'الاسم (إنجليزي)' : 'Name (English)'}>
+              <Input dir="ltr" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
+            </Field>
+          </div>
 
           {/* البرنامج المرتبط: كلية ← قسم ← برنامج */}
           <div className="rounded-xl border border-[var(--border)] bg-slate-50/50 p-3">
