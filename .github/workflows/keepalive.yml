@@ -1,0 +1,28 @@
+name: Keep Supabase awake
+
+# يمنع إيقاف مشروع Supabase المجاني بسبب الخمول (يوقفه بعد ~7 أيام).
+# ينفّذ قراءة خفيفة من قاعدة البيانات كل 3 أيام لإبقائها نشطة.
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *' # كل 3 أيام الساعة 06:00 UTC
+  workflow_dispatch: # تشغيل يدوي عند الحاجة
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/colleges?select=id&limit=1" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $ANON")
+          echo "HTTP $code"
+          # 200 أو 206 = نجاح؛ أي شيء آخر يفشل المهمة للتنبيه
+          if [ "$code" != "200" ] && [ "$code" != "206" ]; then
+            echo "Unexpected status: $code"
+            exit 1
+          fi
