@@ -233,6 +233,14 @@ returns boolean language sql stable security definer set search_path = public as
   );
 $$;
 
+-- هل الاستجابة تنتمي لنشر مفتوح؟ (definer ليتجاوز RLS في فحص سياسة الإجابات)
+create or replace function response_run_open(p_response uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from responses r where r.id = p_response and run_is_open(r.run_id)
+  );
+$$;
+
 -- إنشاء profile تلقائيًا عند تسجيل مستخدم جديد
 create or replace function handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -338,9 +346,7 @@ create policy responses_read on responses for select
 -- ---- Answers: نفس منطق الردود ----
 drop policy if exists answers_insert on answers;
 create policy answers_insert on answers for insert
-  with check (exists (
-    select 1 from responses r where r.id = response_id and run_is_open(r.run_id)
-  ));
+  with check (response_run_open(response_id));
 drop policy if exists answers_read on answers;
 create policy answers_read on answers for select
   using (exists (

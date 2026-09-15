@@ -54,18 +54,18 @@ export default function RunSurvey() {
     }
     setSubmitting(true)
     setError(null)
-    const { data: resp, error: e1 } = await supabase
+    // نولّد المعرّف محليًا ولا نقرأ السطر بعد الإدراج (المستفيد المجهول بلا صلاحية قراءة)
+    const responseId = crypto.randomUUID()
+    const { error: e1 } = await supabase
       .from('responses')
-      .insert({ run_id: data.run.id, campus })
-      .select('id')
-      .single()
-    if (e1 || !resp) {
+      .insert({ id: responseId, run_id: data.run.id, campus })
+    if (e1) {
       setSubmitting(false)
       setError(t('take.closed'))
       return
     }
     const rows = Object.entries(answers).map(([question_id, value]) => ({
-      response_id: resp.id,
+      response_id: responseId,
       question_id,
       value,
     }))
