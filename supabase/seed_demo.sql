@@ -7,8 +7,10 @@ declare
   col uuid;
   dep_acc uuid;
   dep_ba uuid;
+  dep_bi uuid;
   prog_acc uuid;
   prog_hr uuid;
+  prog_bi uuid;
   student_survey uuid;
 begin
   -- الكلية موجودة من schema.sql
@@ -28,6 +30,12 @@ begin
     insert into departments (college_id, name_ar, name_en) values (col, 'قسم إدارة الأعمال', 'Business Administration') returning id into dep_ba;
   end if;
 
+  -- قسم تجريبي: المعلوماتية للأعمال
+  select id into dep_bi from departments where college_id = col and name_ar = 'قسم المعلوماتية للأعمال' limit 1;
+  if dep_bi is null then
+    insert into departments (college_id, name_ar, name_en) values (col, 'قسم المعلوماتية للأعمال', 'Business Informatics') returning id into dep_bi;
+  end if;
+
   -- برامج
   select id into prog_acc from programs where department_id = dep_acc and name_ar = 'ماجستير العلوم في المحاسبة' limit 1;
   if prog_acc is null then
@@ -39,6 +47,12 @@ begin
   if prog_hr is null then
     insert into programs (department_id, name_ar, name_en, degree, language)
     values (dep_ba, 'بكالوريوس إدارة الموارد البشرية', 'BSc Human Resources', 'bachelor', 'ar') returning id into prog_hr;
+  end if;
+
+  select id into prog_bi from programs where department_id = dep_bi and name_ar = 'بكالوريوس المعلوماتية للأعمال' limit 1;
+  if prog_bi is null then
+    insert into programs (department_id, name_ar, name_en, degree, language)
+    values (dep_bi, 'بكالوريوس المعلوماتية للأعمال', 'BSc Business Informatics', 'bachelor', 'ar') returning id into prog_bi;
   end if;
 
   -- نشر استطلاع الطلاب (ماجستير) لبرنامج المحاسبة — مفتوح الآن لمدة 30 يومًا

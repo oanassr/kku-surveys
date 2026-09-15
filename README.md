@@ -32,6 +32,16 @@ Supabase → Authentication → **Add user** (فعّل Auto Confirm) بإيمي�
 update profiles set role = 'admin' where email = 'YOUR_EMAIL';
 ```
 
+## إنشاء المنسّقين من داخل النظام (Edge Function)
+صفحة «المستخدمون» تتيح للمدير إنشاء منسّقين مباشرةً. يتطلب ذلك نشر الدالة مرة واحدة:
+```bash
+# ثبّت Supabase CLI ثم:
+supabase login
+supabase link --project-ref pepdmklqstryuvnxoptx
+supabase functions deploy admin-create-user
+```
+> تستخدم الدالة `SUPABASE_SERVICE_ROLE_KEY` (مضبوط تلقائيًا في بيئة الدوال) ولا يُكشف أبدًا في الواجهة. تعطيل المستخدم لا يحتاج الدالة (تبديل `is_active`).
+
 ## قالب استيراد الإكسل
 من صفحة تحرير الاستطلاع: **تنزيل القالب** ثم املأه (أعمدة: المحور · الفقرة · المحور EN · الفقرة EN) و**استيراد إكسل**.
 
