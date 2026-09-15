@@ -38,7 +38,16 @@ export default function Login() {
     const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}reset`
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo })
     if (error) {
-      setErr(lang === 'ar' ? 'تعذّر إرسال الرابط.' : 'Could not send the link.')
+      const rate = /rate|limit|429/i.test(error.message)
+      setErr(
+        rate
+          ? lang === 'ar'
+            ? 'تم تجاوز حد إرسال الإيميلات مؤقتًا. انتظر ساعة ثم أعد المحاولة، أو تواصل مع مدير النظام.'
+            : 'Email rate limit reached. Try again in an hour.'
+          : lang === 'ar'
+            ? `تعذّر إرسال الرابط: ${error.message}`
+            : `Could not send the link: ${error.message}`,
+      )
       return
     }
     setSent(true)
