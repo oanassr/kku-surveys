@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Building2, ChevronLeft, GraduationCap, Plus, Trash2 } from 'lucide-react'
+import { Building2, ChevronLeft, GraduationCap, Lock, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import { useLang } from '@/i18n'
 import type { College, Department, DegreeLevel, Program } from '@/lib/types'
 import { Button, Card, Field, Input, PageLoader, Select } from '@/components/ui'
@@ -12,6 +13,8 @@ const DEGREES: DegreeLevel[] = ['bachelor', 'master', 'phd']
 
 export default function OrgManager() {
   const { t, lang } = useLang()
+  const { isAdmin } = useAuth()
+  const [err, setErr] = useState<string | null>(null)
   const nm = (o: { name_ar: string; name_en: string | null }) =>
     lang === 'en' && o.name_en ? o.name_en : o.name_ar
 
@@ -57,28 +60,40 @@ export default function OrgManager() {
   }, [selDept])
 
   function openModal(kind: 'college' | 'dept' | 'program') {
+    setErr(null)
     setForm({ name_ar: '', name_en: '', degree: 'bachelor' })
     setModal(kind)
   }
 
+  function rlsHint(msg: string) {
+    return /row-level security|permission|42501/i.test(msg)
+      ? lang === 'ar'
+        ? 'لا تملك صلاحية الإضافة. تأكد أن حسابك «مدير نظام».'
+        : 'Not permitted. Ensure your account is admin.'
+      : `${lang === 'ar' ? 'تعذّر الحفظ: ' : 'Failed: '}${msg}`
+  }
+
   async function save() {
+    setErr(null)
     if (!form.name_ar.trim()) return
     if (modal === 'college') {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('colleges')
         .insert({ name_ar: form.name_ar, name_en: form.name_en || null })
         .select()
         .single()
+      if (error) return setErr(rlsHint(error.message))
       if (data) setColleges((c) => [...c, data as College])
     } else if (modal === 'dept' && selCollege) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('departments')
         .insert({ college_id: selCollege.id, name_ar: form.name_ar, name_en: form.name_en || null })
         .select()
         .single()
+      if (error) return setErr(rlsHint(error.message))
       if (data) setDepartments((d) => [...d, data as Department])
     } else if (modal === 'program' && selDept) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('programs')
         .insert({
           department_id: selDept.id,
@@ -88,6 +103,7 @@ export default function OrgManager() {
         })
         .select()
         .single()
+      if (error) return setErr(rlsHint(error.message))
       if (data) setPrograms((p) => [...p, data as Program])
     }
     setModal(null)
@@ -95,11 +111,30 @@ export default function OrgManager() {
 
   async function del(table: string, id: string, refresh: () => void) {
     if (!confirm(lang === 'ar' ? 'تأكيد الحذف؟' : 'Confirm delete?')) return
-    await supabase.from(table).delete().eq('id', id)
+    const { error } = await supabase.from(table).delete().eq('id', id)
+    if (error) {
+      alert(rlsHint(error.message))
+      return
+    }
     refresh()
   }
 
   if (loading) return <PageLoader />
+
+  if (!isAdmin)
+    return (
+      <Card className="mx-auto max-w-md p-8 text-center">
+        <Lock className="mx-auto mb-3 h-10 w-10 text-amber-500" />
+        <h2 className="font-semibold text-brand-900">
+          {lang === 'ar' ? 'هذه الصفحة لمدير النظام فقط' : 'Admins only'}
+        </h2>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
+          {lang === 'ar'
+            ? 'حسابك ليس «مدير نظام». نفّذ: update profiles set role=\'admin\' where email=\'بريدك\';'
+            : 'Your account is not an admin.'}
+        </p>
+      </Card>
+    )
 
   return (
     <div className="animate-fade-up">
@@ -244,6 +279,7 @@ export default function OrgManager() {
               </Select>
             </Field>
           )}
+          {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setModal(null)}>
               {t('common.cancel')}

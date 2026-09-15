@@ -13,6 +13,7 @@ import RunsManager from './pages/app/RunsManager'
 import ReportPage from './pages/app/ReportPage'
 import UsersManager from './pages/app/UsersManager'
 import IndicatorsManager from './pages/app/IndicatorsManager'
+import IndicatorReportPage from './pages/app/IndicatorReportPage'
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="runs" element={<RunsManager />} />
         <Route path="runs/:runId/report" element={<ReportPage />} />
         <Route path="indicators" element={<IndicatorsManager />} />
+        <Route path="indicators/:indicatorId/report" element={<IndicatorReportPage />} />
         <Route path="users" element={<UsersManager />} />
       </Route>
 

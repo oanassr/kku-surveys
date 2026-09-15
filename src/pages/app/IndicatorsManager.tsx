@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Plus, Target, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { FileBarChart, Link2, Plus, Target, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useLang } from '@/i18n'
 import type { Indicator, IndicatorKind } from '@/lib/types'
 import { Badge, Button, Card, Field, Input, PageLoader, Select } from '@/components/ui'
 import { Modal } from '@/components/Modal'
 import { PageHeader } from './AppLayout'
+import { IndicatorLinker } from './IndicatorLinker'
 
 const KINDS: IndicatorKind[] = ['kpi', 'objective', 'initiative']
 
@@ -20,6 +22,7 @@ export default function IndicatorsManager() {
   const [items, setItems] = useState<Indicator[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
+  const [linkFor, setLinkFor] = useState<Indicator | null>(null)
   const [form, setForm] = useState({ kind: 'kpi' as IndicatorKind, code: '', name_ar: '', name_en: '' })
 
   async function load() {
@@ -85,20 +88,34 @@ export default function IndicatorsManager() {
               {g.list.map((i) => (
                 <div
                   key={i.id}
-                  className="group flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2"
+                  className="group rounded-lg border border-[var(--border)] px-3 py-2"
                 >
-                  <div className="min-w-0">
-                    {i.code && <span className="tnum text-xs text-brand-500">{i.code} · </span>}
-                    <span className="text-sm text-brand-900">
-                      {lang === 'en' && i.name_en ? i.name_en : i.name_ar}
-                    </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      {i.code && <span className="tnum text-xs text-brand-500">{i.code} · </span>}
+                      <span className="text-sm text-brand-900">
+                        {lang === 'en' && i.name_en ? i.name_en : i.name_ar}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => del(i.id)}
+                      className="shrink-0 text-slate-300 opacity-0 transition group-hover:opacity-100 hover:text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => del(i.id)}
-                    className="shrink-0 text-slate-300 opacity-0 transition group-hover:opacity-100 hover:text-red-500"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="mt-2 flex gap-1.5">
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => setLinkFor(i)}>
+                      <Link2 className="h-3.5 w-3.5" />
+                      {lang === 'ar' ? 'ربط' : 'Link'}
+                    </Button>
+                    <Link to={`/app/indicators/${i.id}/report`}>
+                      <Button size="sm" variant="secondary" className="h-8">
+                        <FileBarChart className="h-3.5 w-3.5" />
+                        {lang === 'ar' ? 'تقرير القياس' : 'Report'}
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               ))}
               {!g.list.length && (
@@ -145,6 +162,14 @@ export default function IndicatorsManager() {
           </div>
         </div>
       </Modal>
+
+      {linkFor && (
+        <IndicatorLinker
+          indicatorId={linkFor.id}
+          title={linkFor.name_ar}
+          onClose={() => setLinkFor(null)}
+        />
+      )}
     </div>
   )
 }
