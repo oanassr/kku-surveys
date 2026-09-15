@@ -12,6 +12,7 @@ import {
   Send,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import { useLang } from '@/i18n'
 import type { Program, RunStatus, RunTerm, SurveyRun, SurveyTemplate } from '@/lib/types'
 import { Badge, Button, Card, Field, Input, PageLoader, Select } from '@/components/ui'
@@ -28,6 +29,8 @@ const TERMS: RunTerm[] = ['annual', 's1', 's2', 'summer']
 
 export default function RunsManager() {
   const { t, lang } = useLang()
+  const { isAdmin, session } = useAuth()
+  const uid = session?.user.id
   const [runs, setRuns] = useState<RunView[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
   const [surveys, setSurveys] = useState<SurveyTemplate[]>([])
@@ -48,10 +51,22 @@ export default function RunsManager() {
   })
 
   async function load() {
-    const { data: runData } = await supabase
+    // برامج المنسّق (لتقييد العرض والإنشاء)
+    let myProgramIds: string[] | null = null
+    if (!isAdmin && uid) {
+      const { data: pc } = await supabase
+        .from('program_coordinators')
+        .select('program_id')
+        .eq('user_id', uid)
+      myProgramIds = (pc ?? []).map((r: { program_id: string }) => r.program_id)
+    }
+
+    let runQuery = supabase
       .from('survey_runs')
       .select('*, survey:survey_templates(title_ar,title_en), program:programs(name_ar,name_en)')
       .order('created_at', { ascending: false })
+    if (myProgramIds) runQuery = runQuery.in('program_id', myProgramIds.length ? myProgramIds : ['—'])
+    const { data: runData } = await runQuery
     const list = (runData as unknown as RunView[]) ?? []
 
     // response counts
@@ -66,17 +81,26 @@ export default function RunsManager() {
     )
     setRuns(withCounts)
 
-    const [{ data: progs }, { data: srv }] = await Promise.all([
-      supabase.from('programs').select('*').order('name_ar'),
-      supabase.from('survey_templates').select('*').eq('is_active', true).order('title_ar'),
-    ])
+    // برامج الإنشاء: الأدمن الكل، المنسّق برامجه
+    let progQuery = supabase.from('programs').select('*').order('name_ar')
+    if (myProgramIds) progQuery = progQuery.in('id', myProgramIds.length ? myProgramIds : ['—'])
+    // استطلاعات النشر: الأدمن الكل، المنسّق ما أنشأه
+    let srvQuery = supabase
+      .from('survey_templates')
+      .select('*')
+      .eq('is_active', true)
+      .order('title_ar')
+    if (!isAdmin && uid) srvQuery = srvQuery.eq('created_by', uid)
+
+    const [{ data: progs }, { data: srv }] = await Promise.all([progQuery, srvQuery])
     setPrograms((progs as Program[]) ?? [])
     setSurveys((srv as SurveyTemplate[]) ?? [])
     setLoading(false)
   }
   useEffect(() => {
     load()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, uid])
 
   async function create() {
     if (!form.survey_id || !form.program_id) return
