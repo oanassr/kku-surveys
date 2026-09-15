@@ -156,7 +156,7 @@ create table if not exists survey_runs (
   opens_at     timestamptz not null,
   closes_at    timestamptz not null,
   status       run_status not null default 'draft',
-  access_token text not null unique default encode(gen_random_bytes(9), 'base64'),
+  access_token text not null unique default translate(encode(gen_random_bytes(9), 'base64'), '+/', '-_'),
   created_by   uuid references profiles(id),
   published_at timestamptz,
   created_at   timestamptz not null default now()

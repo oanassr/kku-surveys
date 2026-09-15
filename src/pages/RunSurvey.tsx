@@ -11,7 +11,9 @@ import { Button, Card, Container, PageLoader } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
 export default function RunSurvey() {
-  const { token = '' } = useParams()
+  // نستخدم splat (`/r/*`) لأن رموز الوصول قد تحتوي على "/" أو "+"
+  const params = useParams()
+  const token = params['*'] ?? ''
   const { t, lang } = useLang()
   const nm = (o: { name_ar: string; name_en: string | null }) =>
     lang === 'en' && o.name_en ? o.name_en : o.name_ar

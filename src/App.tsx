@@ -19,7 +19,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/take" element={<TakeSurveyStart />} />
-      <Route path="/r/:token" element={<RunSurvey />} />
+      <Route path="/r/*" element={<RunSurvey />} />
       <Route path="/login" element={<Login />} />
       <Route path="/reset" element={<ResetPassword />} />
 
