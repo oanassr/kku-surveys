@@ -14,6 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,6 +27,21 @@ export default function Login() {
       return
     }
     nav('/app')
+  }
+
+  async function onForgot() {
+    setErr(null)
+    if (!email.trim()) {
+      setErr(lang === 'ar' ? 'أدخل بريدك الإلكتروني أولًا.' : 'Enter your email first.')
+      return
+    }
+    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}reset`
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo })
+    if (error) {
+      setErr(lang === 'ar' ? 'تعذّر إرسال الرابط.' : 'Could not send the link.')
+      return
+    }
+    setSent(true)
   }
 
   return (
@@ -90,10 +106,24 @@ export default function Login() {
                 {err && (
                   <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>
                 )}
+                {sent && (
+                  <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+                    {lang === 'ar'
+                      ? 'أُرسل رابط الاستعادة إلى بريدك. افتحه لتعيين كلمة مرور جديدة.'
+                      : 'A recovery link was sent to your email.'}
+                  </p>
+                )}
                 <Button type="submit" className="w-full" disabled={busy}>
                   <LogIn className="h-4 w-4" />
                   {busy ? t('common.loading') : t('nav.login')}
                 </Button>
+                <button
+                  type="button"
+                  onClick={onForgot}
+                  className="w-full text-center text-sm text-brand-700 hover:text-brand-900"
+                >
+                  {lang === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+                </button>
               </form>
             </Card>
           )}

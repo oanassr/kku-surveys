@@ -3,6 +3,7 @@ import Landing from './pages/Landing'
 import TakeSurveyStart from './pages/TakeSurveyStart'
 import RunSurvey from './pages/RunSurvey'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import AppLayout from './pages/app/AppLayout'
 import Dashboard from './pages/app/Dashboard'
 import OrgManager from './pages/app/OrgManager'
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/take" element={<TakeSurveyStart />} />
       <Route path="/r/:token" element={<RunSurvey />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/reset" element={<ResetPassword />} />
 
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
