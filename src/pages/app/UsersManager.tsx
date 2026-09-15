@@ -99,14 +99,37 @@ export default function UsersManager() {
     })
     setCreating(false)
     if (error || (data && (data as { error?: string }).error)) {
-      const msg = (data as { error?: string })?.error || error?.message || ''
-      setCreateErr(
-        msg.includes('Failed to fetch') || msg.includes('404')
+      // اقرأ نص الخطأ الحقيقي من جسم استجابة الدالة (FunctionsHttpError.context)
+      let msg = (data as { error?: string })?.error || error?.message || ''
+      const ctx = (error as unknown as { context?: Response })?.context
+      if (ctx && typeof ctx.json === 'function') {
+        try {
+          const body = await ctx.clone().json()
+          if (body?.error) msg = String(body.error)
+        } catch {
+          try {
+            const txt = await ctx.clone().text()
+            if (txt) msg = txt
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      const hint =
+        msg === 'forbidden'
           ? lang === 'ar'
-            ? 'الدالة غير منشورة بعد. انشر admin-create-user (انظر README).'
-            : 'Function not deployed yet (see README).'
-          : `${lang === 'ar' ? 'تعذّر الإنشاء: ' : 'Failed: '}${msg}`,
-      )
+            ? 'حسابك ليس «مدير نظام». نفّذ في SQL Editor: update profiles set role=\'admin\' where email=\'بريدك\';'
+            : 'Your account is not admin.'
+          : msg === 'unauthorized'
+            ? lang === 'ar'
+              ? 'انتهت الجلسة. سجّل الخروج ثم الدخول مجددًا.'
+              : 'Session expired, sign in again.'
+            : msg.includes('Failed to fetch')
+              ? lang === 'ar'
+                ? 'الدالة غير منشورة بعد.'
+                : 'Function not deployed.'
+              : `${lang === 'ar' ? 'تعذّر الإنشاء: ' : 'Failed: '}${msg}`
+      setCreateErr(hint)
       return
     }
     setCreateOpen(false)
