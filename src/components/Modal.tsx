@@ -36,7 +36,7 @@ export function Modal({
     >
       <div
         className={cn(
-          'flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-2xl bg-white shadow-2xl animate-fade-up',
+          'flex max-h-[90dvh] w-full flex-col rounded-2xl bg-white shadow-2xl animate-fade-up',
           sizes[size],
         )}
         role="dialog"
