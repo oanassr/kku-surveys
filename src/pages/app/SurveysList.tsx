@@ -99,20 +99,22 @@ export default function SurveysList() {
               </div>
             </div>
             <div className="flex shrink-0 gap-1">
-              <Link to={`/app/surveys/${s.id}`}>
-                <Button size="sm" variant="outline">
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </Link>
               {isAdmin && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-red-500 hover:bg-red-50"
-                  onClick={() => del(s.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <>
+                  <Link to={`/app/surveys/${s.id}`}>
+                    <Button size="sm" variant="outline">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-500 hover:bg-red-50"
+                    onClick={() => del(s.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
               )}
             </div>
           </Card>

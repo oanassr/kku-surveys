@@ -91,6 +91,7 @@ export interface Indicator {
   code: string | null
   name_ar: string
   name_en: string | null
+  program_id: string | null
   created_at: string
 }
 

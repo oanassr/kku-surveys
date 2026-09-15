@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { FileBarChart, Link2, Plus, Target, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useLang } from '@/i18n'
-import type { Indicator, IndicatorKind } from '@/lib/types'
+import type { College, Department, Indicator, IndicatorKind, Program } from '@/lib/types'
 import { Badge, Button, Card, Field, Input, PageLoader, Select } from '@/components/ui'
 import { Modal } from '@/components/Modal'
 import { PageHeader } from './AppLayout'
@@ -23,16 +23,39 @@ export default function IndicatorsManager() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [linkFor, setLinkFor] = useState<Indicator | null>(null)
-  const [form, setForm] = useState({ kind: 'kpi' as IndicatorKind, code: '', name_ar: '', name_en: '' })
+  const [colleges, setColleges] = useState<College[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
+  const emptyForm = {
+    kind: 'kpi' as IndicatorKind,
+    code: '',
+    name_ar: '',
+    name_en: '',
+    college: '',
+    department: '',
+    program_id: '',
+  }
+  const [form, setForm] = useState(emptyForm)
 
   async function load() {
-    const { data } = await supabase.from('indicators').select('*').order('created_at')
+    const [{ data }, { data: cols }, { data: deps }, { data: progs }] = await Promise.all([
+      supabase.from('indicators').select('*').order('created_at'),
+      supabase.from('colleges').select('*').order('name_ar'),
+      supabase.from('departments').select('*').order('name_ar'),
+      supabase.from('programs').select('*').order('name_ar'),
+    ])
     setItems((data as Indicator[]) ?? [])
+    setColleges((cols as College[]) ?? [])
+    setDepartments((deps as Department[]) ?? [])
+    setPrograms((progs as Program[]) ?? [])
     setLoading(false)
   }
   useEffect(() => {
     load()
   }, [])
+
+  const programName = (id: string | null) =>
+    id ? (programs.find((p) => p.id === id)?.name_ar ?? '') : ''
 
   async function create() {
     if (!form.name_ar.trim()) return
@@ -41,8 +64,9 @@ export default function IndicatorsManager() {
       code: form.code || null,
       name_ar: form.name_ar,
       name_en: form.name_en || null,
+      program_id: form.program_id || null,
     })
-    setForm({ kind: 'kpi', code: '', name_ar: '', name_en: '' })
+    setForm(emptyForm)
     setModal(false)
     load()
   }
@@ -64,7 +88,12 @@ export default function IndicatorsManager() {
         subtitle="مؤشرات الأداء والأهداف والمبادرات المرتبطة بالمحاور والأسئلة"
         icon={<Target className="h-5 w-5" />}
         action={
-          <Button onClick={() => setModal(true)}>
+          <Button
+            onClick={() => {
+              setForm(emptyForm)
+              setModal(true)
+            }}
+          >
             <Plus className="h-4 w-4" />
             {lang === 'ar' ? 'مؤشر جديد' : 'New indicator'}
           </Button>
@@ -96,6 +125,11 @@ export default function IndicatorsManager() {
                       <span className="text-sm text-brand-900">
                         {lang === 'en' && i.name_en ? i.name_en : i.name_ar}
                       </span>
+                      {i.program_id && (
+                        <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                          {programName(i.program_id)}
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => del(i.id)}
@@ -154,6 +188,65 @@ export default function IndicatorsManager() {
           <Field label={lang === 'ar' ? 'الاسم (إنجليزي)' : 'Name (English)'}>
             <Input dir="ltr" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
           </Field>
+
+          {/* البرنامج المرتبط: كلية ← قسم ← برنامج */}
+          <div className="rounded-xl border border-[var(--border)] bg-slate-50/50 p-3">
+            <div className="mb-2 text-sm font-medium text-brand-900">
+              {lang === 'ar' ? 'البرنامج المرتبط' : 'Linked program'}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label={t('common.college')}>
+                <Select
+                  value={form.college}
+                  onChange={(e) =>
+                    setForm({ ...form, college: e.target.value, department: '', program_id: '' })
+                  }
+                >
+                  <option value="">—</option>
+                  {colleges.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name_ar}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t('common.department')}>
+                <Select
+                  value={form.department}
+                  onChange={(e) =>
+                    setForm({ ...form, department: e.target.value, program_id: '' })
+                  }
+                  disabled={!form.college}
+                >
+                  <option value="">—</option>
+                  {departments
+                    .filter((d) => d.college_id === form.college)
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name_ar}
+                      </option>
+                    ))}
+                </Select>
+              </Field>
+              <Field label={t('common.program')}>
+                <Select
+                  value={form.program_id}
+                  onChange={(e) => setForm({ ...form, program_id: e.target.value })}
+                  disabled={!form.department}
+                >
+                  <option value="">—</option>
+                  {programs
+                    .filter((p) => p.department_id === form.department)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name_ar}
+                      </option>
+                    ))}
+                </Select>
+              </Field>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setModal(false)}>
               {t('common.cancel')}

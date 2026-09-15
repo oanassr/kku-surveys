@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowRight, Download, Target, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import {
   buildIndicatorReport,
   fetchIndicatorLinks,
@@ -36,7 +37,18 @@ export default function IndicatorReportPage() {
         setLoading(false)
         return
       }
-      const rs = await fetchRunsForIndicator(links)
+      let rs = await fetchRunsForIndicator(links)
+      // إن كان المؤشر مرتبطًا ببرنامج، نُبقي نشرات ذلك البرنامج فقط
+      const { data: ind } = await supabase
+        .from('indicators')
+        .select('program_id')
+        .eq('id', indicatorId)
+        .single()
+      const pid = (ind as { program_id: string | null } | null)?.program_id
+      if (pid) {
+        const filtered = rs.filter((r) => r.program_id === pid)
+        if (filtered.length) rs = filtered
+      }
       setRuns(rs)
       if (rs.length) setRunId(rs[0].id)
       setLoading(false)

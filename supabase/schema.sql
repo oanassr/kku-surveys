@@ -131,8 +131,11 @@ create table if not exists indicators (
   code       text,
   name_ar    text not null,
   name_en    text,
+  program_id uuid references programs(id) on delete set null, -- المؤشر مرتبط ببرنامج
   created_at timestamptz not null default now()
 );
+-- لقواعد البيانات القائمة:
+alter table indicators add column if not exists program_id uuid references programs(id) on delete set null;
 
 -- ربط المحور أو السؤال بمؤشر — للقياس المنفصل
 create table if not exists axis_indicators (

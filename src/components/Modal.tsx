@@ -30,17 +30,19 @@ export function Modal({
   const sizes = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm">
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className={cn(
-            'my-8 w-full rounded-2xl bg-white shadow-2xl animate-fade-up',
-            sizes[size],
-          )}
-          role="dialog"
-          aria-modal="true"
-        >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
+    <div
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className={cn(
+          'flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-2xl bg-white shadow-2xl animate-fade-up',
+          sizes[size],
+        )}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-6 py-4">
           <h2 className="text-lg font-semibold text-brand-900">{title}</h2>
           <button
             onClick={onClose}
@@ -49,8 +51,7 @@ export function Modal({
             <X className="h-5 w-5" />
           </button>
         </div>
-          <div className="p-6">{children}</div>
-        </div>
+        <div className="overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   )

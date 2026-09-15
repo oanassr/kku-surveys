@@ -4,6 +4,7 @@ import TakeSurveyStart from './pages/TakeSurveyStart'
 import RunSurvey from './pages/RunSurvey'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
+import { AdminOnly } from './components/AdminOnly'
 import AppLayout from './pages/app/AppLayout'
 import Dashboard from './pages/app/Dashboard'
 import OrgManager from './pages/app/OrgManager'
@@ -26,14 +27,14 @@ export default function App() {
 
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
-        <Route path="org" element={<OrgManager />} />
+        <Route path="org" element={<AdminOnly><OrgManager /></AdminOnly>} />
         <Route path="surveys" element={<SurveysList />} />
-        <Route path="surveys/:id" element={<SurveyBuilder />} />
+        <Route path="surveys/:id" element={<AdminOnly><SurveyBuilder /></AdminOnly>} />
         <Route path="runs" element={<RunsManager />} />
         <Route path="runs/:runId/report" element={<ReportPage />} />
-        <Route path="indicators" element={<IndicatorsManager />} />
-        <Route path="indicators/:indicatorId/report" element={<IndicatorReportPage />} />
-        <Route path="users" element={<UsersManager />} />
+        <Route path="indicators" element={<AdminOnly><IndicatorsManager /></AdminOnly>} />
+        <Route path="indicators/:indicatorId/report" element={<AdminOnly><IndicatorReportPage /></AdminOnly>} />
+        <Route path="users" element={<AdminOnly><UsersManager /></AdminOnly>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
