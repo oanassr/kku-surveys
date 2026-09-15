@@ -92,6 +92,7 @@ export interface Indicator {
   name_ar: string
   name_en: string | null
   program_id: string | null
+  created_by: string | null
   created_at: string
 }
 

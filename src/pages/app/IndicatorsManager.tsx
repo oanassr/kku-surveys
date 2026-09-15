@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FileBarChart, Link2, Plus, Target, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/context/AuthContext'
 import { useLang } from '@/i18n'
 import type { College, Department, Indicator, IndicatorKind, Program } from '@/lib/types'
 import { Badge, Button, Card, Field, Input, PageLoader, Select } from '@/components/ui'
@@ -19,13 +20,17 @@ export const KIND_LABEL: Record<IndicatorKind, { ar: string; en: string; color: 
 
 export default function IndicatorsManager() {
   const { t, lang } = useLang()
+  const { isAdmin, session } = useAuth()
+  const uid = session?.user.id
   const [items, setItems] = useState<Indicator[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const [linkFor, setLinkFor] = useState<Indicator | null>(null)
   const [colleges, setColleges] = useState<College[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
+  const [myProgramIds, setMyProgramIds] = useState<Set<string>>(new Set())
   const emptyForm = {
     kind: 'kpi' as IndicatorKind,
     code: '',
@@ -38,13 +43,23 @@ export default function IndicatorsManager() {
   const [form, setForm] = useState(emptyForm)
 
   async function load() {
-    const [{ data }, { data: cols }, { data: deps }, { data: progs }] = await Promise.all([
+    const [{ data }, { data: cols }, { data: deps }, { data: progs }, pc] = await Promise.all([
       supabase.from('indicators').select('*').order('created_at'),
       supabase.from('colleges').select('*').order('name_ar'),
       supabase.from('departments').select('*').order('name_ar'),
       supabase.from('programs').select('*').order('name_ar'),
+      uid
+        ? supabase.from('program_coordinators').select('program_id').eq('user_id', uid)
+        : Promise.resolve({ data: [] as { program_id: string }[] }),
     ])
-    setItems((data as Indicator[]) ?? [])
+    const mine = new Set((pc.data ?? []).map((r: { program_id: string }) => r.program_id))
+    setMyProgramIds(mine)
+    let list = (data as Indicator[]) ?? []
+    // المنسّق يرى مؤشرات برامجه أو ما أنشأه
+    if (!isAdmin) {
+      list = list.filter((i) => i.created_by === uid || (i.program_id && mine.has(i.program_id)))
+    }
+    setItems(list)
     setColleges((cols as College[]) ?? [])
     setDepartments((deps as Department[]) ?? [])
     setPrograms((progs as Program[]) ?? [])
@@ -52,20 +67,43 @@ export default function IndicatorsManager() {
   }
   useEffect(() => {
     load()
-  }, [])
+  }, [isAdmin, uid])
+
+  // البرامج المتاحة في نموذج الإنشاء: الأدمن الكل، المنسّق برامجه فقط
+  const allowedPrograms = isAdmin ? programs : programs.filter((p) => myProgramIds.has(p.id))
+  const allowedDeptIds = new Set(allowedPrograms.map((p) => p.department_id))
+  const allowedDepartments = departments.filter((d) => allowedDeptIds.has(d.id))
+  const allowedCollegeIds = new Set(allowedDepartments.map((d) => d.college_id))
+  const allowedColleges = colleges.filter((c) => allowedCollegeIds.has(c.id))
 
   const programName = (id: string | null) =>
     id ? (programs.find((p) => p.id === id)?.name_ar ?? '') : ''
 
   async function create() {
     if (!form.name_ar.trim()) return
-    await supabase.from('indicators').insert({
+    setErr(null)
+    if (!isAdmin && !form.program_id) {
+      setErr(lang === 'ar' ? 'اختر البرنامج (من برامجك).' : 'Select a program.')
+      return
+    }
+    const { error } = await supabase.from('indicators').insert({
       kind: form.kind,
       code: form.code || null,
       name_ar: form.name_ar,
       name_en: form.name_en || null,
       program_id: form.program_id || null,
+      created_by: uid,
     })
+    if (error) {
+      setErr(
+        /row-level security|42501/i.test(error.message)
+          ? lang === 'ar'
+            ? 'لا تملك صلاحية على هذا البرنامج.'
+            : 'Not permitted for this program.'
+          : `${lang === 'ar' ? 'تعذّر الحفظ: ' : 'Failed: '}${error.message}`,
+      )
+      return
+    }
     setForm(emptyForm)
     setModal(false)
     load()
@@ -90,6 +128,7 @@ export default function IndicatorsManager() {
         action={
           <Button
             onClick={() => {
+              setErr(null)
               setForm(emptyForm)
               setModal(true)
             }}
@@ -203,7 +242,7 @@ export default function IndicatorsManager() {
                   }
                 >
                   <option value="">—</option>
-                  {colleges.map((c) => (
+                  {allowedColleges.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name_ar}
                     </option>
@@ -219,7 +258,7 @@ export default function IndicatorsManager() {
                   disabled={!form.college}
                 >
                   <option value="">—</option>
-                  {departments
+                  {allowedDepartments
                     .filter((d) => d.college_id === form.college)
                     .map((d) => (
                       <option key={d.id} value={d.id}>
@@ -235,7 +274,7 @@ export default function IndicatorsManager() {
                   disabled={!form.department}
                 >
                   <option value="">—</option>
-                  {programs
+                  {allowedPrograms
                     .filter((p) => p.department_id === form.department)
                     .map((p) => (
                       <option key={p.id} value={p.id}>
@@ -247,6 +286,7 @@ export default function IndicatorsManager() {
             </div>
           </div>
 
+          {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setModal(false)}>
               {t('common.cancel')}

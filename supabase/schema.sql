@@ -132,10 +132,12 @@ create table if not exists indicators (
   name_ar    text not null,
   name_en    text,
   program_id uuid references programs(id) on delete set null, -- المؤشر مرتبط ببرنامج
+  created_by uuid references profiles(id),
   created_at timestamptz not null default now()
 );
 -- لقواعد البيانات القائمة:
 alter table indicators add column if not exists program_id uuid references programs(id) on delete set null;
+alter table indicators add column if not exists created_by uuid references profiles(id);
 
 -- ربط المحور أو السؤال بمؤشر — للقياس المنفصل
 create table if not exists axis_indicators (
@@ -306,7 +308,7 @@ drop policy if exists pc_admin on program_coordinators;
 create policy pc_admin on program_coordinators for all
   using (is_admin()) with check (is_admin());
 
--- ---- Survey templates / axes / questions / indicators: قراءة عامة، تعديل للمدير ----
+-- ---- Survey templates / axes / questions / indicators: قراءة عامة ----
 do $$
 declare t text;
 begin
@@ -316,10 +318,64 @@ begin
   ] loop
     execute format('drop policy if exists %I_read on %I', t, t);
     execute format('create policy %I_read on %I for select using (true)', t, t);
-    execute format('drop policy if exists %I_admin on %I', t, t);
-    execute format('create policy %I_admin on %I for all using (is_admin()) with check (is_admin())', t, t);
   end loop;
 end $$;
+
+-- ---- كتابة الاستطلاعات/المؤشرات: المنسّق لما يملكه، والأدمن للكل ----
+-- (دوال الملكية owns_survey/owns_axis/can_edit_indicator + السياسات في
+--  patch_coordinator_access.sql — مُدمجة هنا للتثبيت الجديد)
+create or replace function owns_survey(p_survey uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select is_admin() or exists (
+    select 1 from survey_templates s where s.id = p_survey and s.created_by = auth.uid()
+  );
+$$;
+create or replace function owns_axis(p_axis uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select owns_survey((select survey_id from survey_axes where id = p_axis));
+$$;
+create or replace function can_edit_indicator(p_indicator uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select is_admin() or exists (
+    select 1 from indicators i where i.id = p_indicator
+      and (i.created_by = auth.uid()
+           or (i.program_id is not null and coordinates_program(i.program_id)))
+  );
+$$;
+
+drop policy if exists survey_templates_insert on survey_templates;
+create policy survey_templates_insert on survey_templates for insert
+  with check (is_admin() or (auth.uid() is not null and created_by = auth.uid()));
+drop policy if exists survey_templates_update on survey_templates;
+create policy survey_templates_update on survey_templates for update
+  using (owns_survey(id)) with check (owns_survey(id));
+drop policy if exists survey_templates_delete on survey_templates;
+create policy survey_templates_delete on survey_templates for delete
+  using (owns_survey(id));
+
+drop policy if exists survey_axes_write on survey_axes;
+create policy survey_axes_write on survey_axes for all
+  using (owns_survey(survey_id)) with check (owns_survey(survey_id));
+drop policy if exists survey_questions_write on survey_questions;
+create policy survey_questions_write on survey_questions for all
+  using (owns_axis(axis_id)) with check (owns_axis(axis_id));
+
+drop policy if exists indicators_insert on indicators;
+create policy indicators_insert on indicators for insert
+  with check (is_admin() or (created_by = auth.uid() and program_id is not null and coordinates_program(program_id)));
+drop policy if exists indicators_update on indicators;
+create policy indicators_update on indicators for update
+  using (can_edit_indicator(id)) with check (can_edit_indicator(id));
+drop policy if exists indicators_delete on indicators;
+create policy indicators_delete on indicators for delete
+  using (can_edit_indicator(id));
+
+drop policy if exists axis_indicators_write on axis_indicators;
+create policy axis_indicators_write on axis_indicators for all
+  using (can_edit_indicator(indicator_id)) with check (can_edit_indicator(indicator_id));
+drop policy if exists question_indicators_write on question_indicators;
+create policy question_indicators_write on question_indicators for all
+  using (can_edit_indicator(indicator_id)) with check (can_edit_indicator(indicator_id));
 
 -- ---- Survey runs ----
 -- قراءة: عامة (المستفيد يحتاج قراءة النشر عبر الرابط) — لا يوجد سرّي هنا

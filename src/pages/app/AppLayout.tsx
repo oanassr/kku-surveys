@@ -8,6 +8,7 @@ import {
   LogOut,
   Send,
   Target,
+  UserCog,
   Users,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -44,7 +45,7 @@ export default function AppLayout() {
     { to: '/app', icon: <LayoutDashboard className="h-4.5 w-4.5" />, label: t('nav.dashboard'), end: true },
     { to: '/app/runs', icon: <Send className="h-4.5 w-4.5" />, label: t('nav.runs') },
     { to: '/app/surveys', icon: <ClipboardList className="h-4.5 w-4.5" />, label: t('nav.surveys') },
-    { to: '/app/indicators', icon: <Target className="h-4.5 w-4.5" />, label: t('nav.indicators'), adminOnly: true },
+    { to: '/app/indicators', icon: <Target className="h-4.5 w-4.5" />, label: t('nav.indicators') },
     { to: '/app/org', icon: <Building2 className="h-4.5 w-4.5" />, label: t('nav.org'), adminOnly: true },
     { to: '/app/users', icon: <Users className="h-4.5 w-4.5" />, label: t('nav.users'), adminOnly: true },
   ]
@@ -79,7 +80,15 @@ export default function AppLayout() {
             ))}
         </nav>
         <div className="border-t border-[var(--border)] p-3">
-          <div className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2">
+          <NavLink
+            to="/app/account"
+            className={({ isActive }) =>
+              cn(
+                'mb-2 flex items-center gap-3 rounded-xl px-3 py-2 transition-colors',
+                isActive ? 'bg-brand-50' : 'hover:bg-brand-50',
+              )
+            }
+          >
             <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-800">
               {(profile?.full_name || profile?.email || '؟').charAt(0).toUpperCase()}
             </div>
@@ -88,10 +97,10 @@ export default function AppLayout() {
                 {profile?.full_name || profile?.email}
               </div>
               <div className="text-xs text-[var(--text-muted)]">
-                {isAdmin ? 'مدير النظام' : 'منسّق برنامج'}
+                {isAdmin ? 'مدير النظام' : 'منسّق برنامج'} · {lang === 'ar' ? 'حسابي' : 'Account'}
               </div>
             </div>
-          </div>
+          </NavLink>
           <div className="flex gap-1">
             <Button variant="ghost" size="sm" className="flex-1" onClick={toggle}>
               <Languages className="h-4 w-4" />
@@ -118,6 +127,11 @@ export default function AppLayout() {
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--border)] glass px-4 py-3 md:hidden">
           <Logo compact />
           <div className="flex gap-1">
+            <NavLink to="/app/account">
+              <Button variant="ghost" size="sm">
+                <UserCog className="h-4 w-4" />
+              </Button>
+            </NavLink>
             <Button variant="ghost" size="sm" onClick={toggle}>
               <Languages className="h-4 w-4" />
             </Button>

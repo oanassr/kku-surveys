@@ -16,10 +16,12 @@ const DEGREES: DegreeLevel[] = ['bachelor', 'master', 'phd']
 
 export default function SurveysList() {
   const { t, lang } = useLang()
-  const { isAdmin } = useAuth()
+  const { isAdmin, session } = useAuth()
+  const uid = session?.user.id
   const [surveys, setSurveys] = useState<SurveyTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const [form, setForm] = useState({
     title_ar: '',
     title_en: '',
@@ -28,29 +30,37 @@ export default function SurveysList() {
   })
 
   async function load() {
-    const { data } = await supabase
-      .from('survey_templates')
-      .select('*')
-      .order('created_at', { ascending: false })
+    // المنسّق يرى ما أنشأه فقط؛ الأدمن يرى الكل
+    let q = supabase.from('survey_templates').select('*').order('created_at', { ascending: false })
+    if (!isAdmin && uid) q = q.eq('created_by', uid)
+    const { data } = await q
     setSurveys((data as SurveyTemplate[]) ?? [])
     setLoading(false)
   }
   useEffect(() => {
     load()
-  }, [])
+  }, [isAdmin, uid])
+
+  const canEdit = (s: SurveyTemplate) => isAdmin || s.created_by === uid
 
   async function create() {
     if (!form.title_ar.trim()) return
-    const { data } = await supabase
+    setErr(null)
+    const { data, error } = await supabase
       .from('survey_templates')
       .insert({
         title_ar: form.title_ar,
         title_en: form.title_en || null,
         audience: form.audience,
         degree_level: form.degree_level,
+        created_by: uid,
       })
       .select()
       .single()
+    if (error) {
+      setErr(lang === 'ar' ? `تعذّر الإنشاء: ${error.message}` : error.message)
+      return
+    }
     setModal(false)
     if (data) load()
   }
@@ -70,12 +80,15 @@ export default function SurveysList() {
         subtitle="قوالب الاستطلاعات القابلة لإعادة الاستخدام"
         icon={<ClipboardList className="h-5 w-5" />}
         action={
-          isAdmin && (
-            <Button onClick={() => setModal(true)}>
-              <Plus className="h-4 w-4" />
-              {lang === 'ar' ? 'استطلاع جديد' : 'New survey'}
-            </Button>
-          )
+          <Button
+            onClick={() => {
+              setErr(null)
+              setModal(true)
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            {lang === 'ar' ? 'استطلاع جديد' : 'New survey'}
+          </Button>
         }
       />
 
@@ -99,7 +112,7 @@ export default function SurveysList() {
               </div>
             </div>
             <div className="flex shrink-0 gap-1">
-              {isAdmin && (
+              {canEdit(s) && (
                 <>
                   <Link to={`/app/surveys/${s.id}`}>
                     <Button size="sm" variant="outline">
@@ -168,6 +181,7 @@ export default function SurveysList() {
               </Select>
             </Field>
           </div>
+          {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setModal(false)}>
               {t('common.cancel')}

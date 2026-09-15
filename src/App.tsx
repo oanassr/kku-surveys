@@ -15,6 +15,7 @@ import ReportPage from './pages/app/ReportPage'
 import UsersManager from './pages/app/UsersManager'
 import IndicatorsManager from './pages/app/IndicatorsManager'
 import IndicatorReportPage from './pages/app/IndicatorReportPage'
+import AccountPage from './pages/app/AccountPage'
 
 export default function App() {
   return (
@@ -29,11 +30,12 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="org" element={<AdminOnly><OrgManager /></AdminOnly>} />
         <Route path="surveys" element={<SurveysList />} />
-        <Route path="surveys/:id" element={<AdminOnly><SurveyBuilder /></AdminOnly>} />
+        <Route path="surveys/:id" element={<SurveyBuilder />} />
         <Route path="runs" element={<RunsManager />} />
         <Route path="runs/:runId/report" element={<ReportPage />} />
-        <Route path="indicators" element={<AdminOnly><IndicatorsManager /></AdminOnly>} />
-        <Route path="indicators/:indicatorId/report" element={<AdminOnly><IndicatorReportPage /></AdminOnly>} />
+        <Route path="indicators" element={<IndicatorsManager />} />
+        <Route path="indicators/:indicatorId/report" element={<IndicatorReportPage />} />
+        <Route path="account" element={<AccountPage />} />
         <Route path="users" element={<AdminOnly><UsersManager /></AdminOnly>} />
       </Route>
 
