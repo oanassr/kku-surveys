@@ -100,7 +100,8 @@ export default function RunsManager() {
 
   const nm = (o: { name_ar: string; name_en: string | null }) =>
     lang === 'en' && o.name_en ? o.name_en : o.name_ar
-  const linkFor = (r: RunView) => `${window.location.origin}/r/${r.access_token}`
+  const linkFor = (r: RunView) =>
+    `${window.location.origin}${import.meta.env.BASE_URL}r/${r.access_token}`
 
   function copy(r: RunView) {
     navigator.clipboard.writeText(linkFor(r))
