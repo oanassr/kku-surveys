@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   منصة استطلاعات الرأي — نظام التصميم (Design tokens)
+   هوية بصرية: أزرق جامعي عميق + ذهبي، مع محايدات نظيفة
+   ============================================================ */
+
+@theme {
+  --font-sans: 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
+
+  /* Brand — deep university blue */
+  --color-brand-50: #eef5fd;
+  --color-brand-100: #d6e6fa;
+  --color-brand-200: #b0cef4;
+  --color-brand-300: #7faeeb;
+  --color-brand-400: #4b86dd;
+  --color-brand-500: #2866c8;
+  --color-brand-600: #1a4fa8;
+  --color-brand-700: #163f86;
+  --color-brand-800: #0b3b6f;
+  --color-brand-900: #0a2d54;
+  --color-brand-950: #071d38;
+
+  /* Accent — gold */
+  --color-gold-400: #f0c14b;
+  --color-gold-500: #e3a812;
+  --color-gold-600: #c4880a;
+
+  /* Semantic ratings (5-band KKU scale) */
+  --color-rate-5: #16a34a; /* مستوفٍ بتميز */
+  --color-rate-4: #65a30d; /* مستوفٍ بإتقان */
+  --color-rate-3: #d97706; /* مستوفٍ */
+  --color-rate-2: #ea580c; /* مستوفٍ جزئيًا */
+  --color-rate-1: #dc2626; /* غير مستوفٍ */
+}
+
+:root {
+  --bg: #f6f8fb;
+  --surface: #ffffff;
+  --surface-2: #f1f5fa;
+  --border: #e2e8f0;
+  --text: #0f1b2d;
+  --text-muted: #5b6b82;
+  --ring: color-mix(in srgb, var(--color-brand-500) 45%, transparent);
+  color-scheme: light;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 100% -10%, #e8f0fb 0%, transparent 55%),
+    radial-gradient(900px 500px at -10% 0%, #fdf6e3 0%, transparent 45%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Latin numerals stay legible inside Arabic UI */
+.tnum {
+  font-family: 'Inter', var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.glass {
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
