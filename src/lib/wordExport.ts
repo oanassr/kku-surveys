@@ -13,6 +13,7 @@ import {
 } from 'docx'
 import { saveAs } from 'file-saver'
 import { fmtMean } from './ratings'
+import { parsePlanRows } from './improvementPlan'
 import type { AxisStat, QuestionStat, ReportData } from './report'
 
 type Align = (typeof AlignmentType)[keyof typeof AlignmentType]
@@ -172,6 +173,44 @@ function bulletList(items: QuestionStat[]) {
   )
 }
 
+function planTable(actions: string | null | undefined) {
+  const rows = parsePlanRows(actions)
+  if (!rows || !rows.length) return null
+  const trs: TableRow[] = [
+    new TableRow({
+      tableHeader: true,
+      children: [
+        cell('م', { bold: true, color: 'FFFFFF', bg: HEAD_BG }),
+        cell('مجال التحسين', { bold: true, color: 'FFFFFF', bg: HEAD_BG }),
+        cell('الإجراء التحسيني المقترح', { bold: true, color: 'FFFFFF', bg: HEAD_BG }),
+        cell('المسؤول', { bold: true, color: 'FFFFFF', bg: HEAD_BG }),
+        cell('الإطار الزمني', { bold: true, color: 'FFFFFF', bg: HEAD_BG }),
+        cell('مؤشر قياس النجاح', { bold: true, color: 'FFFFFF', bg: HEAD_BG }),
+      ],
+    }),
+  ]
+  rows.forEach((r, i) => {
+    trs.push(
+      new TableRow({
+        children: [
+          cell(String(i + 1)),
+          cell(r.area, { align: AlignmentType.RIGHT }),
+          cell(r.action, { align: AlignmentType.RIGHT }),
+          cell(r.responsible, { align: AlignmentType.RIGHT }),
+          cell(r.timeframe, { align: AlignmentType.RIGHT }),
+          cell(r.indicator, { align: AlignmentType.RIGHT }),
+        ],
+      }),
+    )
+  })
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders,
+    visuallyRightToLeft: true,
+    rows: trs,
+  })
+}
+
 export async function exportReportDocx(
   data: ReportData,
   plan: { strengths?: string | null; weaknesses?: string | null; actions?: string | null } | null,
@@ -212,8 +251,11 @@ export async function exportReportDocx(
           P('أبرز نقاط الضعف', { bold: true, color: 'DC2626', size: 24 }),
           ...(plan?.weaknesses ? [P(plan.weaknesses)] : bulletList(data.weaknesses)),
           new Paragraph({ text: '' }),
-          P('خطة التحسين للفصل القادم', { bold: true, color: BRAND, size: 24 }),
-          P(plan?.actions || '—'),
+          P('الخطة التحسينية للفصل القادم', { bold: true, color: BRAND, size: 24 }),
+          new Paragraph({ text: '' }),
+          ...(planTable(plan?.actions)
+            ? [planTable(plan?.actions) as Table]
+            : [P(plan?.actions || '—')]),
         ],
       },
     ],

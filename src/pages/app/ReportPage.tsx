@@ -9,11 +9,18 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { ArrowRight, Download, FileBarChart, Save, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { ArrowRight, Download, FileBarChart, Plus, Save, Sparkles, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { buildReport, type ReportData } from '@/lib/report'
 import { exportReportDocx } from '@/lib/wordExport'
 import { fmtMean } from '@/lib/ratings'
+import {
+  emptyPlanRow,
+  generatePlan,
+  parsePlanRows,
+  serializePlanRows,
+  type PlanRow,
+} from '@/lib/improvementPlan'
 import { useLang } from '@/i18n'
 import type { ImprovementPlan } from '@/lib/types'
 import { Badge, Button, Card, PageLoader } from '@/components/ui'
@@ -25,6 +32,8 @@ export default function ReportPage() {
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [plan, setPlan] = useState<Partial<ImprovementPlan>>({})
+  const [rows, setRows] = useState<PlanRow[]>([])
+  const [legacyText, setLegacyText] = useState('')
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -35,19 +44,42 @@ export default function ReportPage() {
         supabase.from('improvement_plans').select('*').eq('run_id', runId).maybeSingle(),
       ])
       setData(rep)
-      if (pl) setPlan(pl as ImprovementPlan)
+      if (pl) {
+        setPlan(pl as ImprovementPlan)
+        const parsed = parsePlanRows((pl as ImprovementPlan).actions)
+        if (parsed) setRows(parsed)
+        else setLegacyText((pl as ImprovementPlan).actions ?? '')
+      }
       setLoading(false)
     }
     load()
   }, [runId])
 
+  function autoGenerate() {
+    if (!data) return
+    if (rows.length && !window.confirm(lang === 'ar' ? 'سيُعاد توليد الخطة من النتائج واستبدال الصفوف الحالية. متابعة؟' : 'Regenerate and replace current rows?')) return
+    setRows(generatePlan(data))
+    setLegacyText('')
+  }
+
+  function updateRow(i: number, patch: Partial<PlanRow>) {
+    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+  }
+  function addRow() {
+    setRows((rs) => [...rs, emptyPlanRow()])
+  }
+  function removeRow(i: number) {
+    setRows((rs) => rs.filter((_, idx) => idx !== i))
+  }
+
   async function savePlan() {
     setSaving(true)
+    const actions = rows.length ? serializePlanRows(rows) : legacyText || null
     await supabase.from('improvement_plans').upsert({
       run_id: runId,
       strengths: plan.strengths ?? null,
       weaknesses: plan.weaknesses ?? null,
-      actions: plan.actions ?? null,
+      actions,
     })
     setSaving(false)
   }
@@ -55,7 +87,8 @@ export default function ReportPage() {
   async function doExport() {
     if (!data) return
     setExporting(true)
-    await exportReportDocx(data, plan, lang)
+    const actions = rows.length ? serializePlanRows(rows) : legacyText || null
+    await exportReportDocx(data, { ...plan, actions }, lang)
     setExporting(false)
   }
 
@@ -221,24 +254,106 @@ export default function ReportPage() {
 
       {/* Improvement plan */}
       <Card className="mt-6 p-5">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold text-brand-900">
-            {lang === 'ar' ? 'خطة التحسين للفصل القادم' : 'Improvement plan'}
+            {lang === 'ar' ? 'الخطة التحسينية للفصل القادم' : 'Improvement plan'}
           </h3>
-          <Button size="sm" onClick={savePlan} disabled={saving}>
-            <Save className="h-4 w-4" />
-            {saving ? t('common.loading') : t('common.save')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={autoGenerate}>
+              <Sparkles className="h-4 w-4" />
+              {lang === 'ar' ? 'توليد تلقائي من النتائج' : 'Auto-generate'}
+            </Button>
+            <Button size="sm" onClick={savePlan} disabled={saving}>
+              <Save className="h-4 w-4" />
+              {saving ? t('common.loading') : t('common.save')}
+            </Button>
+          </div>
         </div>
-        <textarea
-          value={plan.actions ?? ''}
-          onChange={(e) => setPlan({ ...plan, actions: e.target.value })}
-          rows={5}
-          placeholder={lang === 'ar' ? 'اكتب إجراءات التحسين المقترحة…' : 'Improvement actions…'}
-          className="w-full rounded-xl border border-[var(--border)] bg-white p-3 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-        />
+
+        <p className="mb-3 text-xs text-[var(--text-muted)]">
+          {lang === 'ar'
+            ? 'تُبنى الخطة آليًا من المحاور والفقرات الأدنى تقييمًا وفق مقياس التقدير، ويمكنك تعديل أي خلية أو إضافة/حذف صفوف.'
+            : 'Generated deterministically from the lowest-rated axes and items; every cell is editable.'}
+        </p>
+
+        {rows.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--text-muted)]">
+            {lang === 'ar'
+              ? 'لا توجد خطة بعد — اضغط «توليد تلقائي من النتائج» لبنائها، أو «إضافة صف» لكتابتها يدويًا.'
+              : 'No plan yet — click Auto-generate or add a row.'}
+            <div className="mt-3">
+              <Button size="sm" variant="ghost" onClick={addRow}>
+                <Plus className="h-4 w-4" />
+                {lang === 'ar' ? 'إضافة صف' : 'Add row'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-xs text-[var(--text-muted)]">
+                  <th className="p-2 text-start font-medium">{lang === 'ar' ? 'مجال التحسين' : 'Area'}</th>
+                  <th className="p-2 text-start font-medium">{lang === 'ar' ? 'الإجراء التحسيني المقترح' : 'Action'}</th>
+                  <th className="p-2 text-start font-medium">{lang === 'ar' ? 'المسؤول' : 'Owner'}</th>
+                  <th className="p-2 text-start font-medium">{lang === 'ar' ? 'الإطار الزمني' : 'Timeframe'}</th>
+                  <th className="p-2 text-start font-medium">{lang === 'ar' ? 'مؤشر قياس النجاح' : 'Success indicator'}</th>
+                  <th className="p-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-b border-[var(--border)] align-top">
+                    <PlanCell value={r.area} onChange={(v) => updateRow(i, { area: v })} />
+                    <PlanCell value={r.action} onChange={(v) => updateRow(i, { action: v })} wide />
+                    <PlanCell value={r.responsible} onChange={(v) => updateRow(i, { responsible: v })} />
+                    <PlanCell value={r.timeframe} onChange={(v) => updateRow(i, { timeframe: v })} />
+                    <PlanCell value={r.indicator} onChange={(v) => updateRow(i, { indicator: v })} />
+                    <td className="p-1">
+                      <button
+                        type="button"
+                        onClick={() => removeRow(i)}
+                        className="grid h-7 w-7 place-items-center rounded-lg text-red-500 hover:bg-red-50"
+                        title={lang === 'ar' ? 'حذف الصف' : 'Delete row'}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3">
+              <Button size="sm" variant="ghost" onClick={addRow}>
+                <Plus className="h-4 w-4" />
+                {lang === 'ar' ? 'إضافة صف' : 'Add row'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
+  )
+}
+
+function PlanCell({
+  value,
+  onChange,
+  wide,
+}: {
+  value: string
+  onChange: (v: string) => void
+  wide?: boolean
+}) {
+  return (
+    <td className={`p-1 ${wide ? 'min-w-[16rem]' : 'min-w-[9rem]'}`}>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={wide ? 3 : 2}
+        className="w-full resize-y rounded-lg border border-[var(--border)] bg-white p-2 text-xs leading-relaxed focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-[var(--ring)]"
+      />
+    </td>
   )
 }
 
