@@ -4,7 +4,8 @@ import { FileBarChart, Link2, Plus, Target, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { useLang } from '@/i18n'
-import type { College, Department, Indicator, IndicatorKind, Program } from '@/lib/types'
+import type { College, Department, Indicator, IndicatorKind, KpiDirection, MeasureType, Program } from '@/lib/types'
+import { nextKpiCode } from '@/lib/plans'
 import { Badge, Button, Card, Field, Input, PageLoader, Select } from '@/components/ui'
 import { Modal } from '@/components/Modal'
 import { PageHeader } from './AppLayout'
@@ -39,6 +40,9 @@ export default function IndicatorsManager() {
     college: '',
     department: '',
     program_id: '',
+    measure: 'survey' as MeasureType,
+    calc: '',
+    direction: 'up' as KpiDirection,
   }
   const [form, setForm] = useState(emptyForm)
 
@@ -86,14 +90,29 @@ export default function IndicatorsManager() {
       setErr(lang === 'ar' ? 'اختر البرنامج (من برامجك).' : 'Select a program.')
       return
     }
-    const { error } = await supabase.from('indicators').insert({
+    const base = {
       kind: form.kind,
       code: form.code || null,
       name_ar: form.name_ar,
       name_en: form.name_en || null,
       program_id: form.program_id || null,
       created_by: uid,
-    })
+    }
+    const prog = programs.find((p) => p.id === form.program_id)
+    // خصائص مؤشر الأداء (تتطلب patch_operational_plans.sql) — نعيد المحاولة بدونها إن لم تُطبَّق بعد
+    const extra =
+      form.kind === 'kpi'
+        ? {
+            degree_level: prog?.degree ?? null,
+            measure_type: form.measure,
+            calc_method: form.calc.trim() || null,
+            direction: form.direction,
+          }
+        : {}
+    let { error } = await supabase.from('indicators').insert({ ...base, ...extra })
+    if (error && /column|schema cache/i.test(error.message)) {
+      ;({ error } = await supabase.from('indicators').insert(base))
+    }
     if (error) {
       setErr(
         /row-level security|42501/i.test(error.message)
@@ -219,7 +238,11 @@ export default function IndicatorsManager() {
                 dir="ltr"
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
-                placeholder="KPI-1"
+                placeholder={
+                  form.kind === 'kpi' && form.program_id
+                    ? nextKpiCode(programs.find((p) => p.id === form.program_id)?.degree ?? 'bachelor', items.filter((i) => i.program_id === form.program_id))
+                    : 'KPI-1'
+                }
               />
             </Field>
             <Field label={lang === 'ar' ? 'الاسم (عربي)' : 'Name (Arabic)'} required>
@@ -287,6 +310,37 @@ export default function IndicatorsManager() {
               </Field>
             </div>
           </div>
+
+          {form.kind === 'kpi' && (
+            <div className="rounded-xl border border-[var(--border)] bg-slate-50/50 p-3">
+              <div className="mb-2 text-sm font-medium text-brand-900">
+                {lang === 'ar' ? 'خصائص مؤشر الأداء (للخطة التشغيلية)' : 'KPI properties (operational plan)'}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={lang === 'ar' ? 'مصدر القياس' : 'Measurement source'}>
+                  <Select value={form.measure} onChange={(e) => setForm({ ...form, measure: e.target.value as MeasureType })}>
+                    <option value="survey">{lang === 'ar' ? 'من استطلاع رأي' : 'Survey-based'}</option>
+                    <option value="manual">{lang === 'ar' ? 'إدخال يدوي' : 'Manual entry'}</option>
+                  </Select>
+                </Field>
+                <Field label={lang === 'ar' ? 'اتجاه التحسّن' : 'Better when'}>
+                  <Select value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value as KpiDirection })}>
+                    <option value="up">{lang === 'ar' ? 'الأعلى أفضل' : 'Higher is better'}</option>
+                    <option value="down">{lang === 'ar' ? 'الأقل أفضل' : 'Lower is better'}</option>
+                    <option value="none">{lang === 'ar' ? 'لا يُقارَن' : 'Not compared'}</option>
+                  </Select>
+                </Field>
+              </div>
+              <Field label={lang === 'ar' ? 'كيفية حساب المؤشر' : 'How it is calculated'} className="mt-3">
+                <textarea
+                  value={form.calc}
+                  onChange={(e) => setForm({ ...form, calc: e.target.value })}
+                  rows={2}
+                  className="w-full rounded-xl border border-[var(--border)] bg-white p-3 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                />
+              </Field>
+            </div>
+          )}
 
           {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
           <div className="flex justify-end gap-2 pt-2">

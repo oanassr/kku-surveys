@@ -11,6 +11,8 @@ import OrgManager from './pages/app/OrgManager'
 import SurveysList from './pages/app/SurveysList'
 import SurveyBuilder from './pages/app/SurveyBuilder'
 import RunsManager from './pages/app/RunsManager'
+import PlansList from './pages/app/PlansList'
+import PlanEditor from './pages/app/PlanEditor'
 import ReportPage from './pages/app/ReportPage'
 import UsersManager from './pages/app/UsersManager'
 import IndicatorsManager from './pages/app/IndicatorsManager'
@@ -33,6 +35,8 @@ export default function App() {
         <Route path="surveys/:id" element={<SurveyBuilder />} />
         <Route path="runs" element={<RunsManager />} />
         <Route path="runs/:runId/report" element={<ReportPage />} />
+        <Route path="plans" element={<PlansList />} />
+        <Route path="plans/:planId" element={<PlanEditor />} />
         <Route path="indicators" element={<IndicatorsManager />} />
         <Route path="indicators/:indicatorId/report" element={<IndicatorReportPage />} />
         <Route path="account" element={<AccountPage />} />

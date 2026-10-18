@@ -9,17 +9,17 @@
   --font-sans: 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
 
   /* Brand — deep university blue */
-  --color-brand-50: #eef5fd;
-  --color-brand-100: #d6e6fa;
-  --color-brand-200: #b0cef4;
-  --color-brand-300: #7faeeb;
-  --color-brand-400: #4b86dd;
-  --color-brand-500: #2866c8;
-  --color-brand-600: #1a4fa8;
-  --color-brand-700: #163f86;
-  --color-brand-800: #0b3b6f;
-  --color-brand-900: #0a2d54;
-  --color-brand-950: #071d38;
+  --color-brand-50: #eef8fa;
+  --color-brand-100: #d2eef3;
+  --color-brand-200: #a7dce7;
+  --color-brand-300: #6cc0d4;
+  --color-brand-400: #32a0bd;
+  --color-brand-500: #1583a3;
+  --color-brand-600: #0e6a88;
+  --color-brand-700: #0e546d;
+  --color-brand-800: #0d4259;
+  --color-brand-900: #0b3447;
+  --color-brand-950: #07222f;
 
   /* Accent — gold */
   --color-gold-400: #f0c14b;
@@ -35,7 +35,7 @@
 }
 
 :root {
-  --bg: #f6f8fb;
+  --bg: #f5f8fa;
   --surface: #ffffff;
   --surface-2: #f1f5fa;
   --border: #e2e8f0;
@@ -58,8 +58,8 @@ body,
 body {
   margin: 0;
   background:
-    radial-gradient(1200px 600px at 100% -10%, #e8f0fb 0%, transparent 55%),
-    radial-gradient(900px 500px at -10% 0%, #fdf6e3 0%, transparent 45%),
+    radial-gradient(1100px 560px at 100% -10%, #e0f2f6 0%, transparent 55%),
+    radial-gradient(900px 500px at -10% 0%, #fdf5e1 0%, transparent 45%),
     var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
@@ -112,4 +112,10 @@ body {
   background: color-mix(in srgb, var(--surface) 85%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* نمط نقطي ناعم للخلفيات الداكنة */
+.dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.2px);
+  background-size: 22px 22px;
 }

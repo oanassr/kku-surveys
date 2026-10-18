@@ -147,7 +147,7 @@ export default function IndicatorReportPage() {
               </div>
               <div
                 className="tnum my-1 text-4xl font-bold"
-                style={{ color: data.report.axes[0]?.band?.color ?? '#0b3b6f' }}
+                style={{ color: data.report.axes[0]?.band?.color ?? '#0d4259' }}
               >
                 {fmtMean(data.report.overallMean)}
               </div>

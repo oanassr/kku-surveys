@@ -2,9 +2,9 @@ import type { Dict } from './ar'
 
 export const en: Dict = {
   app: {
-    name: 'Program Opinion Surveys',
-    university: 'King Khalid University',
-    tagline: 'Measuring beneficiary satisfaction and analyzing program outcomes',
+    name: 'Indirect Measurement Platform',
+    short: 'Surveys · Operational plans · KPIs',
+    tagline: 'From beneficiary feedback to operational plans measured by KPIs',
   },
   nav: {
     home: 'Home',
@@ -13,6 +13,7 @@ export const en: Dict = {
     runs: 'Publishing',
     reports: 'Reports',
     org: 'Organization',
+    plans: 'Operational plans',
     indicators: 'Indicators',
     users: 'Users',
     login: 'Sign in',
@@ -67,16 +68,16 @@ export const en: Dict = {
     other: 'Other',
   },
   landing: {
-    heroTitle: 'The voice of beneficiaries drives our programs',
-    heroSub: 'A unified platform to build opinion surveys, collect responses, and generate accredited analytical reports for every academic program.',
+    heroTitle: 'Indirect measurement that drives program improvement',
+    heroSub: 'One platform to gather beneficiary feedback, measure performance indicators, feed program operational plans, and export editable Word reports.',
     startSurvey: 'Start a survey',
     staffLogin: 'Coordinators & admin login',
-    f1Title: 'Flexible survey builder',
-    f1Desc: 'Fully editable axes and items, Arabic/English, linked to KPIs and objectives.',
-    f2Title: 'Direct collection, no external forms',
-    f2Desc: 'A link or QR per publication, with male/female campus split and an availability window.',
-    f3Title: 'Ready analytical reports',
-    f3Desc: 'Averages, percentages and rating levels, strengths and weaknesses, and Word export matching the approved template.',
+    f1Title: 'Flexible surveys, direct collection',
+    f1Desc: 'Build editable axes and items, publish by link or QR, split male/female campuses and set an availability window.',
+    f2Title: 'Data-fed operational plans',
+    f2Desc: 'Goals → initiatives → activities → KPIs, fed directly from survey results or entered manually.',
+    f3Title: 'Editable Word reports',
+    f3Desc: 'Survey and full operational-plan reports in Word, matching the approved templates.',
   },
   take: {
     pickTitle: 'Choose your program to begin',

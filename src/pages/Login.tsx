@@ -56,18 +56,17 @@ export default function Login() {
   return (
     <div className="grid min-h-full lg:grid-cols-2">
       {/* Brand side */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-800 to-brand-950 lg:block">
-        <div className="absolute inset-0 opacity-20 [background:radial-gradient(600px_300px_at_20%_10%,#f0c14b,transparent),radial-gradient(600px_300px_at_80%_90%,#4b86dd,transparent)]" />
+      <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 via-brand-900 to-brand-950 lg:block">
+        <div className="dots absolute inset-0 opacity-60" />
+        <div className="absolute inset-0 opacity-30 [background:radial-gradient(600px_300px_at_20%_10%,#f0c14b,transparent),radial-gradient(600px_300px_at_80%_90%,#32a0bd,transparent)]" />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
-          <div className="[&_*]:!text-white">
-            <Logo />
-          </div>
+          <Logo tone="light" />
           <div>
             <h2 className="text-3xl font-bold leading-snug">{t('landing.heroTitle')}</h2>
             <p className="mt-4 max-w-md text-white/70">{t('landing.heroSub')}</p>
           </div>
           <span className="text-sm text-white/50">
-            {t('app.university')} © {new Date().getFullYear()}
+            {t('app.name')} © {new Date().getFullYear()}
           </span>
         </div>
       </div>

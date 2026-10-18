@@ -230,7 +230,7 @@ export default function Dashboard() {
         <Stat icon={<Users2 className="h-5 w-5" />} label={t('common.male')} value={summary.male} tone="var(--color-rate-3)" />
         <Card className="p-5">
           <div className="text-sm text-[var(--text-muted)]">{lang === 'ar' ? 'المتوسط العام' : 'Overall avg'}</div>
-          <div className="tnum mt-2 text-3xl font-bold" style={{ color: bandFor(summary.overall)?.color ?? '#0b3b6f' }}>
+          <div className="tnum mt-2 text-3xl font-bold" style={{ color: bandFor(summary.overall)?.color ?? '#0d4259' }}>
             {fmtMean(summary.overall)}
           </div>
           <div className="mt-1 flex items-center gap-2">

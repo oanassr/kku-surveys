@@ -85,6 +85,9 @@ export interface SurveyQuestion {
   created_at: string
 }
 
+export type MeasureType = 'survey' | 'manual'
+export type KpiDirection = 'up' | 'down' | 'none'
+
 export interface Indicator {
   id: string
   kind: IndicatorKind
@@ -94,6 +97,13 @@ export interface Indicator {
   program_id: string | null
   created_by: string | null
   created_at: string
+  // خصائص مؤشرات الأداء للخطط التشغيلية (اختيارية — تتطلب patch_operational_plans.sql)
+  degree_level?: DegreeLevel | null
+  measure_type?: MeasureType
+  calc_method?: string | null
+  direction?: KpiDirection
+  unit?: string | null
+  evidence_url?: string | null
 }
 
 export interface SurveyRun {

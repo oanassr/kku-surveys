@@ -357,7 +357,7 @@ function PlanCell({
   )
 }
 
-const BRANDHEX = '#0b3b6f'
+const BRANDHEX = '#0d4259'
 
 function bandColor(pct: number | null) {
   if (pct == null) return '#94a3b8'
