@@ -211,6 +211,35 @@ function planTable(actions: string | null | undefined) {
   })
 }
 
+/** قسم الإجابات المفتوحة (يظهر فقط إن وُجدت أسئلة مفتوحة). */
+function openAnswerParagraphs(data: ReportData) {
+  const out: Paragraph[] = []
+  for (const oq of data.openAnswers) {
+    out.push(new Paragraph({ text: '' }))
+    out.push(P(`الإجابات المفتوحة: ${oq.text_ar}`, { bold: true, color: BRAND, size: 24 }))
+    if (!oq.items.length) {
+      out.push(P('لا توجد إجابات.'))
+      continue
+    }
+    oq.items.forEach((it) =>
+      out.push(
+        new Paragraph({
+          bidirectional: true,
+          alignment: AlignmentType.RIGHT,
+          bullet: { level: 0 },
+          children: [
+            new TextRun({ text: it.text, size: 20, font: 'Arial', rightToLeft: true }),
+            ...(it.campus
+              ? [new TextRun({ text: `  (${it.campus === 'male' ? 'مقر الطلاب' : 'مقر الطالبات'})`, size: 16, color: '5B6B82', font: 'Arial', rightToLeft: true })]
+              : []),
+          ],
+        }),
+      ),
+    )
+  }
+  return out
+}
+
 export async function exportReportDocx(
   data: ReportData,
   plan: { strengths?: string | null; weaknesses?: string | null; actions?: string | null } | null,
@@ -250,6 +279,7 @@ export async function exportReportDocx(
           new Paragraph({ text: '' }),
           P('أبرز نقاط الضعف', { bold: true, color: 'DC2626', size: 24 }),
           ...(plan?.weaknesses ? [P(plan.weaknesses)] : bulletList(data.weaknesses)),
+          ...openAnswerParagraphs(data),
           new Paragraph({ text: '' }),
           P('الخطة التحسينية للفصل القادم', { bold: true, color: BRAND, size: 24 }),
           new Paragraph({ text: '' }),

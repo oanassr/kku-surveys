@@ -9,10 +9,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { ArrowRight, Download, FileBarChart, Plus, Save, Sparkles, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react'
+import { ArrowRight, Download, FileBarChart, FileSpreadsheet, MessageSquareText, Plus, Save, Sparkles, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { buildReport, type ReportData } from '@/lib/report'
 import { exportReportDocx } from '@/lib/wordExport'
+import { exportResponsesXlsx, runEnded } from '@/lib/responsesExport'
 import { fmtMean } from '@/lib/ratings'
 import {
   emptyPlanRow,
@@ -36,6 +37,7 @@ export default function ReportPage() {
   const [legacyText, setLegacyText] = useState('')
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportingX, setExportingX] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -92,6 +94,12 @@ export default function ReportPage() {
     setExporting(false)
   }
 
+  async function doExportXlsx() {
+    setExportingX(true)
+    await exportResponsesXlsx(runId)
+    setExportingX(false)
+  }
+
   if (loading) return <PageLoader label={t('common.loading')} />
   if (!data) return <div className="p-10 text-center text-[var(--text-muted)]">—</div>
 
@@ -116,10 +124,27 @@ export default function ReportPage() {
         subtitle={`${data.program.name_ar} · ${t('common.year')} ${data.run.year}`}
         icon={<FileBarChart className="h-5 w-5" />}
         action={
-          <Button variant="gold" onClick={doExport} disabled={exporting}>
-            <Download className="h-4 w-4" />
-            {exporting ? t('common.loading') : lang === 'ar' ? 'تصدير Word' : 'Export Word'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={doExportXlsx}
+              disabled={exportingX || !runEnded(data.run) || !data.counts.total}
+              title={
+                !runEnded(data.run)
+                  ? 'يتاح تصدير الاستجابات بعد انتهاء فترة النشر (أو إغلاقه)'
+                  : !data.counts.total
+                    ? 'لا توجد استجابات للتصدير'
+                    : 'تصدير الاستجابات إلى Excel'
+              }
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              {exportingX ? t('common.loading') : lang === 'ar' ? 'تصدير الاستجابات (Excel)' : 'Export responses'}
+            </Button>
+            <Button variant="gold" onClick={doExport} disabled={exporting}>
+              <Download className="h-4 w-4" />
+              {exporting ? t('common.loading') : lang === 'ar' ? 'تصدير Word' : 'Export Word'}
+            </Button>
+          </div>
         }
       />
 
@@ -251,6 +276,38 @@ export default function ReportPage() {
           </ul>
         </Card>
       </div>
+
+      {/* Open answers */}
+      {data.openAnswers.map((oq) => (
+        <Card key={oq.id} className="mt-6 overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-gold-400/10 px-5 py-3">
+            <div className="flex items-center gap-2 font-semibold text-brand-900">
+              <MessageSquareText className="h-4 w-4 text-gold-600" />
+              {oq.text_ar}
+            </div>
+            <Badge className="bg-white text-[var(--text-muted)]">
+              {oq.items.length} {lang === 'ar' ? 'إجابة' : 'answers'}
+            </Badge>
+          </div>
+          {oq.items.length ? (
+            <ul className="max-h-96 divide-y divide-[var(--border)] overflow-y-auto">
+              {oq.items.map((it, i) => (
+                <li key={i} className="flex items-start gap-3 px-5 py-3 text-sm leading-relaxed">
+                  <span className="tnum mt-0.5 shrink-0 text-xs text-slate-400">{i + 1}</span>
+                  <span className="flex-1 whitespace-pre-wrap text-[var(--text)]">{it.text}</span>
+                  {it.campus && (
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
+                      {t(`common.${it.campus}`)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="px-5 py-6 text-center text-sm text-[var(--text-muted)]">لا توجد إجابات على هذا السؤال بعد.</p>
+          )}
+        </Card>
+      ))}
 
       {/* Improvement plan */}
       <Card className="mt-6 p-5">

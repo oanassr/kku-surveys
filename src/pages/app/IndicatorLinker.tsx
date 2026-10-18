@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useLang } from '@/i18n'
+import { isLikert } from '@/lib/types'
 import type { SurveyAxis, SurveyQuestion, SurveyTemplate } from '@/lib/types'
 import { Modal } from '@/components/Modal'
 import { PageLoader } from '@/components/ui'
@@ -36,7 +37,7 @@ export function IndicatorLinker({
       ])
       setSurveys((s.data as SurveyTemplate[]) ?? [])
       setAxes((a.data as SurveyAxis[]) ?? [])
-      setQuestions((q.data as SurveyQuestion[]) ?? [])
+      setQuestions(((q.data as SurveyQuestion[]) ?? []).filter(isLikert))
       setLinkedAxes(new Set((la.data ?? []).map((r: { axis_id: string }) => r.axis_id)))
       setLinkedQs(new Set((lq.data ?? []).map((r: { question_id: string }) => r.question_id)))
       setLoading(false)

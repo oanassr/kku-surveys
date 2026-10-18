@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CalendarX2, CheckCircle2, PartyPopper, Users } from 'lucide-react'
+import { CalendarX2, CheckCircle2, MessageSquareText, PartyPopper, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { fetchRunByToken, runIsOpenNow, type RunFull } from '@/lib/queries'
-import type { Campus } from '@/lib/types'
+import { isLikert, type Campus } from '@/lib/types'
 import { useLang } from '@/i18n'
 import { PublicHeader } from '@/components/PublicHeader'
 import { LikertScale } from '@/components/LikertScale'
@@ -22,6 +22,7 @@ export default function RunSurvey() {
   const [loading, setLoading] = useState(true)
   const [campus, setCampus] = useState<Campus | null>(null)
   const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [texts, setTexts] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +35,8 @@ export default function RunSurvey() {
   }, [token])
 
   const allQuestions = useMemo(
-    () => (data ? data.survey.axes.flatMap((a) => a.questions) : []),
+    // التقدّم والتحقق يخصّان فقرات المقياس؛ الأسئلة المفتوحة اختيارية
+    () => (data ? data.survey.axes.flatMap((a) => a.questions).filter(isLikert) : []),
     [data],
   )
   const answeredCount = Object.keys(answers).length
@@ -69,7 +71,14 @@ export default function RunSurvey() {
       question_id,
       value,
     }))
-    const { error: e2 } = await supabase.from('answers').insert(rows)
+    const { error: e2 } = rows.length ? await supabase.from('answers').insert(rows) : { error: null }
+    if (!e2) {
+      // الإجابات المفتوحة في جدول منفصل؛ فشلها لا يُفقد إجابات المقياس المحفوظة
+      const textRows = Object.entries(texts)
+        .map(([question_id, v]) => ({ response_id: responseId, question_id, text_value: v.trim().slice(0, 2000) }))
+        .filter((r) => r.text_value)
+      if (textRows.length) await supabase.from('answer_texts').insert(textRows)
+    }
     setSubmitting(false)
     if (e2) {
       setError('—')
@@ -197,6 +206,35 @@ export default function RunSurvey() {
               </div>
               <div className="divide-y divide-[var(--border)]">
                 {axis.questions.map((q) => {
+                  if (!isLikert(q)) {
+                    const v = texts[q.id] ?? ''
+                    return (
+                      <div key={q.id} className="p-5">
+                        <div className="mb-3 flex items-start gap-2">
+                          <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gold-400/20 text-gold-600">
+                            <MessageSquareText className="h-3.5 w-3.5" />
+                          </span>
+                          <p className="text-sm leading-relaxed text-[var(--text)]">
+                            {lang === 'en' && q.text_en ? q.text_en : q.text_ar}
+                            <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
+                              {lang === 'ar' ? 'اختياري' : 'optional'}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="ps-8">
+                          <textarea
+                            value={v}
+                            onChange={(e) => setTexts((p) => ({ ...p, [q.id]: e.target.value.slice(0, 2000) }))}
+                            rows={4}
+                            maxLength={2000}
+                            placeholder={lang === 'ar' ? 'اكتب إجابتك هنا…' : 'Write your answer here…'}
+                            className="w-full rounded-xl border border-[var(--border)] bg-white p-3 text-sm leading-relaxed focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                          />
+                          <div className="tnum mt-1 text-end text-[11px] text-slate-400">{v.length}/2000</div>
+                        </div>
+                      </div>
+                    )
+                  }
                   qNo += 1
                   const answered = answers[q.id] != null
                   return (

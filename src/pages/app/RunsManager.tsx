@@ -6,14 +6,18 @@ import {
   Check,
   Copy,
   FileBarChart,
+  FileSpreadsheet,
   Link2,
   Lock,
   Plus,
   Send,
+  Trash2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { useLang } from '@/i18n'
+import { deleteRunIfEmpty } from '@/lib/runs'
+import { exportResponsesXlsx, runEnded } from '@/lib/responsesExport'
 import type { Program, RunStatus, RunTerm, SurveyRun, SurveyTemplate } from '@/lib/types'
 import { Badge, Button, Card, Field, Input, PageLoader, Select } from '@/components/ui'
 import { Modal } from '@/components/Modal'
@@ -38,6 +42,8 @@ export default function RunsManager() {
   const [modal, setModal] = useState(false)
   const [qrRun, setQrRun] = useState<RunView | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
 
   const today = new Date().toISOString().slice(0, 10)
   const in30 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10)
@@ -122,6 +128,35 @@ export default function RunsManager() {
     setRuns((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)))
   }
 
+  async function exportXlsx(r: RunView) {
+    setBusy(`x-${r.id}`)
+    setMsg(null)
+    const res = await exportResponsesXlsx(r.id)
+    if (!res.ok) setMsg(res.message ?? 'تعذّر التصدير.')
+    setBusy(null)
+  }
+
+  async function removeRun(r: RunView) {
+    const title = lang === 'en' && r.survey.title_en ? r.survey.title_en : r.survey.title_ar
+    const ok = confirm(
+      `حذف نشر «${title}»؟\n\nسيتوقف رابطه ورمز QR عن العمل نهائيًا. لا توجد عليه أي استجابة، ولا يمكن التراجع.`,
+    )
+    if (!ok) return
+    setBusy(`d-${r.id}`)
+    setMsg(null)
+    const res = await deleteRunIfEmpty(r.id)
+    setBusy(null)
+    if (res.ok) return setRuns((rs) => rs.filter((x) => x.id !== r.id))
+    setMsg(
+      res.reason === 'has_responses'
+        ? 'لم يُحذف النشر: وصلته استجابات للتو. النشرات التي عليها استجابات لا تُحذف.'
+        : res.reason === 'denied'
+          ? 'لا تملك صلاحية حذف هذا النشر.'
+          : `تعذّر الحذف: ${res.message ?? ''}`,
+    )
+    load()
+  }
+
   const nm = (o: { name_ar: string; name_en: string | null }) =>
     lang === 'en' && o.name_en ? o.name_en : o.name_ar
   const linkFor = (r: RunView) =>
@@ -157,6 +192,10 @@ export default function RunsManager() {
           </Button>
         }
       />
+
+      {msg && (
+        <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{msg}</p>
+      )}
 
       <div className="space-y-3">
         {runs.map((r) => (
@@ -215,12 +254,38 @@ export default function RunsManager() {
                     {lang === 'ar' ? 'فتح' : 'Open'}
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!runEnded(r) || !r.responseCount || busy === `x-${r.id}`}
+                  title={
+                    !runEnded(r)
+                      ? 'يتاح تصدير الاستجابات بعد انتهاء فترة النشر (أو إغلاقه)'
+                      : !r.responseCount
+                        ? 'لا توجد استجابات للتصدير'
+                        : 'تصدير الاستجابات إلى Excel'
+                  }
+                  onClick={() => exportXlsx(r)}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  {busy === `x-${r.id}` ? t('common.loading') : 'Excel'}
+                </Button>
                 <Link to={`/app/runs/${r.id}/report`}>
                   <Button size="sm" variant="primary">
                     <FileBarChart className="h-4 w-4" />
                     {t('nav.reports')}
                   </Button>
                 </Link>
+                {r.responseCount === 0 && (
+                  <button
+                    onClick={() => removeRun(r)}
+                    disabled={busy === `d-${r.id}`}
+                    title="حذف النشر (لا توجد عليه استجابات)"
+                    className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           </Card>

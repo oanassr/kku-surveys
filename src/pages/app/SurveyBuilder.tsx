@@ -7,6 +7,7 @@ import {
   GripVertical,
   Layers,
   Link2,
+  MessageSquareText,
   Plus,
   Target,
   Trash2,
@@ -15,7 +16,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchSurveyWithAxes } from '@/lib/queries'
 import { downloadSurveyTemplate, parseSurveyWorkbook } from '@/lib/excel'
 import { useLang } from '@/i18n'
-import type { AxisWithQuestions, Indicator, SurveyWithAxes } from '@/lib/types'
+import { isLikert, type AxisWithQuestions, type Indicator, type QuestionKind, type SurveyWithAxes } from '@/lib/types'
 import { Badge, Button, Card, Input, PageLoader } from '@/components/ui'
 import { Modal } from '@/components/Modal'
 import { PageHeader } from './AppLayout'
@@ -67,13 +68,22 @@ export default function SurveyBuilder() {
     await supabase.from('survey_axes').delete().eq('id', axisId)
     reload()
   }
-  async function addQuestion(axisId: string, text: string, pos: number) {
+  const NEEDS_PATCH =
+    'تعذّر الحفظ: أسئلة الرأي المفتوحة تتطلب تشغيل supabase/patch_survey_features.sql مرة واحدة في Supabase.'
+  async function addQuestion(axisId: string, text: string, pos: number, kind: QuestionKind = 'likert') {
     if (!text.trim()) return
-    await supabase.from('survey_questions').insert({ axis_id: axisId, text_ar: text, position: pos })
+    // لا نُرسل kind للأسئلة العادية فتبقى متوافقة مع قاعدة لم تُرقَّع بعد
+    const { error } = await supabase
+      .from('survey_questions')
+      .insert({ axis_id: axisId, text_ar: text, position: pos, ...(kind === 'text' ? { kind } : {}) })
+    if (error) alert(/column|schema cache/i.test(error.message) ? NEEDS_PATCH : error.message)
     reload()
   }
-  const updateQuestion = (qId: string, patch: Record<string, unknown>) =>
-    supabase.from('survey_questions').update(patch).eq('id', qId)
+  async function updateQuestion(qId: string, patch: Record<string, unknown>) {
+    const { error } = await supabase.from('survey_questions').update(patch).eq('id', qId)
+    if (error) alert(/column|schema cache/i.test(error.message) ? NEEDS_PATCH : error.message)
+    if ('kind' in patch) reload()
+  }
   async function delQuestion(qId: string) {
     await supabase.from('survey_questions').delete().eq('id', qId)
     reload()
@@ -98,6 +108,7 @@ export default function SurveyBuilder() {
             text_ar: q.text_ar,
             text_en: q.text_en,
             position: i,
+            ...(q.kind === 'text' ? { kind: 'text' } : {}),
           }))
           if (qRows.length) await supabase.from('survey_questions').insert(qRows)
         }
@@ -140,7 +151,8 @@ export default function SurveyBuilder() {
   if (loading) return <PageLoader />
   if (!survey) return <div className="p-10 text-center text-[var(--text-muted)]">—</div>
 
-  const totalQ = survey.axes.reduce((n, a) => n + a.questions.length, 0)
+  const totalQ = survey.axes.reduce((n, a) => n + a.questions.filter(isLikert).length, 0)
+  const openQ = survey.axes.reduce((n, a) => n + a.questions.filter((q) => !isLikert(q)).length, 0)
 
   return (
     <div className="animate-fade-up">
@@ -153,7 +165,7 @@ export default function SurveyBuilder() {
       </Link>
       <PageHeader
         title={lang === 'en' && survey.title_en ? survey.title_en : survey.title_ar}
-        subtitle={`${survey.axes.length} ${t('common.axis')} · ${totalQ} ${t('common.question')}`}
+        subtitle={`${survey.axes.length} ${t('common.axis')} · ${totalQ} ${t('common.question')}${openQ ? ` · ${openQ} ${lang === 'ar' ? 'سؤال مفتوح' : 'open'}` : ''}`}
         icon={<Layers className="h-5 w-5" />}
         action={
           <div className="flex flex-wrap gap-2">
@@ -189,7 +201,7 @@ export default function SurveyBuilder() {
             index={i}
             onUpdate={updateAxis}
             onDelete={() => delAxis(axis.id)}
-            onAddQuestion={(text) => addQuestion(axis.id, text, axis.questions.length)}
+            onAddQuestion={(text, kind) => addQuestion(axis.id, text, axis.questions.length, kind)}
             onUpdateQuestion={updateQuestion}
             onDeleteQuestion={delQuestion}
             onLinkAxis={() => openLink({ kind: 'axis', id: axis.id, label: axis.title_ar })}
@@ -267,7 +279,7 @@ function AxisEditor({
   index: number
   onUpdate: (id: string, patch: Record<string, unknown>) => void
   onDelete: () => void
-  onAddQuestion: (text: string) => void
+  onAddQuestion: (text: string, kind: QuestionKind) => void
   onUpdateQuestion: (id: string, patch: Record<string, unknown>) => void
   onDeleteQuestion: (id: string) => void
   onLinkAxis: () => void
@@ -276,6 +288,7 @@ function AxisEditor({
   const { t, lang } = useLang()
   const [title, setTitle] = useState(axis.title_ar)
   const [newQ, setNewQ] = useState('')
+  const [newKind, setNewKind] = useState<QuestionKind>('likert')
 
   return (
     <Card className="overflow-hidden">
@@ -314,6 +327,8 @@ function AxisEditor({
             key={q.id}
             index={qi}
             text={q.text_ar}
+            kind={isLikert(q) ? 'likert' : 'text'}
+            onToggleKind={() => onUpdateQuestion(q.id, { kind: isLikert(q) ? 'text' : 'likert' })}
             onSave={(text) => onUpdateQuestion(q.id, { text_ar: text })}
             onDelete={() => onDeleteQuestion(q.id)}
             onLink={() => onLinkQuestion(q.id, q.text_ar)}
@@ -328,20 +343,41 @@ function AxisEditor({
           onChange={(e) => setNewQ(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && newQ.trim()) {
-              onAddQuestion(newQ)
+              onAddQuestion(newQ, newKind)
               setNewQ('')
             }
           }}
-          placeholder={lang === 'ar' ? 'أضف فقرة… (Enter)' : 'Add item… (Enter)'}
+          placeholder={
+            newKind === 'text'
+              ? lang === 'ar' ? 'أضف سؤالًا مفتوحًا… (Enter)' : 'Add an open question… (Enter)'
+              : lang === 'ar' ? 'أضف فقرة… (Enter)' : 'Add item… (Enter)'
+          }
           className="h-9 border-transparent bg-white"
         />
+        <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-[var(--border)] bg-white text-xs">
+          <button
+            type="button"
+            onClick={() => setNewKind('likert')}
+            className={'px-2.5 py-1.5 ' + (newKind === 'likert' ? 'bg-brand-800 text-white' : 'text-[var(--text-muted)]')}
+          >
+            {lang === 'ar' ? 'مقياس' : 'Scale'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setNewKind('text')}
+            className={'flex items-center gap-1 px-2.5 py-1.5 ' + (newKind === 'text' ? 'bg-gold-500 font-semibold text-brand-950' : 'text-[var(--text-muted)]')}
+          >
+            <MessageSquareText className="h-3.5 w-3.5" />
+            {lang === 'ar' ? 'مفتوح' : 'Open'}
+          </button>
+        </div>
         <Button
           size="sm"
           variant="secondary"
           className="shrink-0"
           onClick={() => {
             if (newQ.trim()) {
-              onAddQuestion(newQ)
+              onAddQuestion(newQ, newKind)
               setNewQ('')
             }
           }}
@@ -356,12 +392,16 @@ function AxisEditor({
 function QuestionRow({
   index,
   text,
+  kind,
+  onToggleKind,
   onSave,
   onDelete,
   onLink,
 }: {
   index: number
   text: string
+  kind: QuestionKind
+  onToggleKind: () => void
   onSave: (text: string) => void
   onDelete: () => void
   onLink: () => void
@@ -378,12 +418,27 @@ function QuestionRow({
         className="flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-[var(--text)] hover:bg-slate-50 focus:border-brand-300 focus:bg-white focus:outline-none"
       />
       <button
+        onClick={onToggleKind}
+        title={kind === 'text' ? 'سؤال مفتوح (اضغط للتحويل إلى مقياس)' : 'تحويل إلى سؤال مفتوح'}
+        className={
+          'shrink-0 rounded-md px-1.5 py-1 text-[11px] transition ' +
+          (kind === 'text'
+            ? 'flex items-center gap-1 bg-gold-400/20 font-semibold text-gold-600'
+            : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-gold-600')
+        }
+      >
+        <MessageSquareText className="h-3.5 w-3.5" />
+        {kind === 'text' && 'مفتوح'}
+      </button>
+      {kind === 'likert' && (
+      <button
         onClick={onLink}
         title="ربط بمؤشر"
         className="shrink-0 text-slate-300 opacity-0 transition group-hover:opacity-100 hover:text-brand-600"
       >
         <Link2 className="h-4 w-4" />
       </button>
+      )}
       <button
         onClick={onDelete}
         className="shrink-0 text-slate-300 opacity-0 transition group-hover:opacity-100 hover:text-red-500"

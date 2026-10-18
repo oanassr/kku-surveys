@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { FileBarChart, Filter, Send, Users2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { fetchAnswers, fetchResponses } from '@/lib/answers'
 import { useAuth } from '@/context/AuthContext'
 import { useLang } from '@/i18n'
 import { bandFor, fmtMean, meanToPercent } from '@/lib/ratings'
@@ -77,23 +78,14 @@ export default function Dashboard() {
       // احسب تجميع الاستجابات لكل نشر
       const runIds = list.map((r) => r.id)
       if (runIds.length) {
-        const { data: resp } = await supabase
-          .from('responses')
-          .select('id, campus, run_id')
-          .in('run_id', runIds)
-        const respList = (resp as { id: string; campus: Campus; run_id: string }[]) ?? []
+        // جلب مُرقَّم: Supabase يقطع الاستعلام عند 1000 صف، وقوائم .in() الطويلة تتجاوز طول العنوان
+        const respList = (await fetchResponses(runIds)) as { id: string; campus: Campus; run_id: string }[]
         const respRun = new Map(respList.map((x) => [x.id, x.run_id]))
 
         const answersByRun = new Map<string, number[]>()
         if (respList.length) {
-          const { data: ans } = await supabase
-            .from('answers')
-            .select('value, response_id')
-            .in(
-              'response_id',
-              respList.map((x) => x.id),
-            )
-          for (const a of (ans as { value: number; response_id: string }[]) ?? []) {
+          const ans = await fetchAnswers(respList.map((x) => x.id))
+          for (const a of ans) {
             const rid = respRun.get(a.response_id)
             if (!rid) continue
             if (!answersByRun.has(rid)) answersByRun.set(rid, [])

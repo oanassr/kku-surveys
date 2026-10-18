@@ -75,6 +75,8 @@ export interface SurveyAxis {
   created_at: string
 }
 
+export type QuestionKind = 'likert' | 'text'
+
 export interface SurveyQuestion {
   id: string
   axis_id: string
@@ -83,7 +85,12 @@ export interface SurveyQuestion {
   position: number
   is_active: boolean
   created_at: string
+  /** نوع السؤال: مقياس ليكرت (الافتراضي) أو سؤال مفتوح — يتطلب patch_survey_features.sql */
+  kind?: QuestionKind
 }
+
+/** هل الفقرة مقياس ليكرت؟ (الأسئلة القديمة بلا kind تُعامل كليكرت) */
+export const isLikert = (q: { kind?: QuestionKind | null }) => (q.kind ?? 'likert') === 'likert'
 
 export type MeasureType = 'survey' | 'manual'
 export type KpiDirection = 'up' | 'down' | 'none'
