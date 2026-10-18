@@ -88,7 +88,9 @@ export const en: Dict = {
     intro: 'Please rate each statement, where (5) is the highest and (1) is the lowest.',
     thanks: 'Thank you!',
     thanksSub: 'Your response has been recorded and will help improve the program.',
-    answerAll: 'Please answer all items before submitting.',
+    answerAll: 'Please answer all required items before submitting.',
+    answerOne: 'Please answer at least one question.',
+    optional: 'Optional',
     closed: 'This survey has ended or has not started yet.',
   },
   scale: {

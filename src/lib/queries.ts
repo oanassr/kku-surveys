@@ -23,6 +23,7 @@ export async function fetchSurveyWithAxes(surveyId: string): Promise<SurveyWithA
     .select('*')
     .eq('survey_id', surveyId)
     .order('position')
+    .order('created_at')
 
   const axisIds = (axes ?? []).map((a: SurveyAxis) => a.id)
   let questions: SurveyQuestion[] = []
@@ -33,6 +34,7 @@ export async function fetchSurveyWithAxes(surveyId: string): Promise<SurveyWithA
       .in('axis_id', axisIds)
       .eq('is_active', true)
       .order('position')
+      .order('created_at')
     questions = (qs as SurveyQuestion[]) ?? []
   }
 

@@ -4,10 +4,10 @@ import { saveAs } from 'file-saver'
 export interface ParsedAxis {
   title_ar: string
   title_en: string | null
-  questions: { text_ar: string; text_en: string | null; kind: 'likert' | 'text' }[]
+  questions: { text_ar: string; text_en: string | null; kind: 'likert' | 'text'; required: boolean }[]
 }
 
-const HEADERS = ['المحور', 'الفقرة', 'المحور (EN)', 'الفقرة (EN)', 'نوع الفقرة (مقياس/مفتوح)']
+const HEADERS = ['المحور', 'الفقرة', 'المحور (EN)', 'الفقرة (EN)', 'نوع الفقرة (مقياس/مفتوح)', 'الإجابة (إلزامي/اختياري)']
 
 /** يولّد قالب إكسل فارغًا مع أمثلة توضيحية. */
 export function downloadSurveyTemplate() {
@@ -16,10 +16,10 @@ export function downloadSurveyTemplate() {
     ['محور جودة إدارة البرنامج', 'تعمل إدارة البرنامج على توفير بيئة أكاديمية داعمة', 'Program Management', 'The program provides a supportive academic environment'],
     ['محور جودة إدارة البرنامج', 'تطبق إدارة البرنامج آليات تضمن النزاهة والعدالة', 'Program Management', 'The program applies fairness mechanisms'],
     ['محور الإرشاد الأكاديمي', 'المرشد الأكاديمي متواجد حين أحتاجه', 'Academic Advising', 'My academic advisor is available when needed'],
-    ['ملاحظات واقتراحات', 'ما اقتراحاتك لتطوير البرنامج؟', 'Comments', 'What are your suggestions to improve the program?', 'مفتوح'],
+    ['ملاحظات واقتراحات', 'ما اقتراحاتك لتطوير البرنامج؟', 'Comments', 'What are your suggestions to improve the program?', 'مفتوح', 'اختياري'],
   ]
   const ws = XLSX.utils.aoa_to_sheet(rows)
-  ws['!cols'] = [{ wch: 30 }, { wch: 55 }, { wch: 24 }, { wch: 45 }, { wch: 22 }]
+  ws['!cols'] = [{ wch: 30 }, { wch: 55 }, { wch: 24 }, { wch: 45 }, { wch: 22 }, { wch: 22 }]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'الاستطلاع')
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
@@ -54,7 +54,8 @@ export async function parseSurveyWorkbook(file: File): Promise<ParsedAxis[]> {
       }
       const kindCell = String(r[4] ?? '').trim()
       const kind = /(مفتوح|open|text)/i.test(kindCell) ? 'text' : 'likert'
-      if (qAr) map.get(axisAr)!.questions.push({ text_ar: qAr, text_en: qEn, kind })
+      const required = !/(اختياري|optional)/i.test(String(r[5] ?? ''))
+      if (qAr) map.get(axisAr)!.questions.push({ text_ar: qAr, text_en: qEn, kind, required })
     }
   }
   return order.map((k) => map.get(k)!).filter((a) => a.questions.length > 0)

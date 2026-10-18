@@ -87,7 +87,12 @@ export interface SurveyQuestion {
   created_at: string
   /** نوع السؤال: مقياس ليكرت (الافتراضي) أو سؤال مفتوح — يتطلب patch_survey_features.sql */
   kind?: QuestionKind
+  /** هل الإجابة إلزامية؟ الافتراضي true (الأسئلة القديمة بلا هذا العمود إلزامية) — patch_question_required.sql */
+  required?: boolean
 }
+
+/** هل الإجابة على السؤال إلزامية؟ (غير المحدد = إلزامي) */
+export const isRequired = (q: { required?: boolean | null }) => q.required !== false
 
 /** هل الفقرة مقياس ليكرت؟ (الأسئلة القديمة بلا kind تُعامل كليكرت) */
 export const isLikert = (q: { kind?: QuestionKind | null }) => (q.kind ?? 'likert') === 'likert'

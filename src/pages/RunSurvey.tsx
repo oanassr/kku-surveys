@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { CalendarX2, CheckCircle2, MessageSquareText, PartyPopper, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { fetchRunByToken, runIsOpenNow, type RunFull } from '@/lib/queries'
-import { isLikert, type Campus } from '@/lib/types'
+import { isLikert, isRequired, type Campus } from '@/lib/types'
 import { useLang } from '@/i18n'
 import { PublicHeader } from '@/components/PublicHeader'
 import { LikertScale } from '@/components/LikertScale'
@@ -26,6 +26,7 @@ export default function RunSurvey() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showMissing, setShowMissing] = useState(false)
 
   useEffect(() => {
     fetchRunByToken(token).then((d) => {
@@ -35,12 +36,16 @@ export default function RunSurvey() {
   }, [token])
 
   const allQuestions = useMemo(
-    // التقدّم والتحقق يخصّان فقرات المقياس؛ الأسئلة المفتوحة اختيارية
-    () => (data ? data.survey.axes.flatMap((a) => a.questions).filter(isLikert) : []),
+    () => (data ? data.survey.axes.flatMap((a) => a.questions) : []),
     [data],
   )
-  const answeredCount = Object.keys(answers).length
-  const total = allQuestions.length
+  // التقدّم والتحقق يخصّان الأسئلة الإلزامية فقط؛ الاختيارية لا تمنع الإرسال
+  const requiredQs = allQuestions.filter(isRequired)
+  const isFilled = (q: { id: string; kind?: 'likert' | 'text' }) =>
+    isLikert(q) ? answers[q.id] != null : (texts[q.id] ?? '').trim() !== ''
+  const missing = requiredQs.filter((q) => !isFilled(q))
+  const total = requiredQs.length
+  const answeredCount = total - missing.length
   const progress = total ? Math.round((answeredCount / total) * 100) : 0
 
   async function submit() {
@@ -50,8 +55,14 @@ export default function RunSurvey() {
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    if (answeredCount < total) {
+    if (missing.length) {
+      setShowMissing(true)
       setError(t('take.answerAll'))
+      document.getElementById(`q-${missing[0].id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    if (!Object.keys(answers).length && !Object.values(texts).some((v) => v.trim())) {
+      setError(t('take.answerOne'))
       return
     }
     setSubmitting(true)
@@ -154,9 +165,11 @@ export default function RunSurvey() {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className="tnum shrink-0 text-sm font-semibold text-brand-800">
-            {answeredCount}/{total}
-          </span>
+          {total > 0 && (
+            <span className="tnum shrink-0 text-sm font-semibold text-brand-800">
+              {answeredCount}/{total}
+            </span>
+          )}
         </Container>
       </div>
 
@@ -209,16 +222,22 @@ export default function RunSurvey() {
                   if (!isLikert(q)) {
                     const v = texts[q.id] ?? ''
                     return (
-                      <div key={q.id} className="p-5">
+                      <div
+                        key={q.id}
+                        id={`q-${q.id}`}
+                        className={cn('p-5', showMissing && isRequired(q) && !v.trim() && 'bg-red-50/50')}
+                      >
                         <div className="mb-3 flex items-start gap-2">
                           <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gold-400/20 text-gold-600">
                             <MessageSquareText className="h-3.5 w-3.5" />
                           </span>
                           <p className="text-sm leading-relaxed text-[var(--text)]">
                             {lang === 'en' && q.text_en ? q.text_en : q.text_ar}
-                            <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
-                              {lang === 'ar' ? 'اختياري' : 'optional'}
-                            </span>
+                            {!isRequired(q) && (
+                              <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
+                                {t('take.optional')}
+                              </span>
+                            )}
                           </p>
                         </div>
                         <div className="ps-8">
@@ -238,7 +257,11 @@ export default function RunSurvey() {
                   qNo += 1
                   const answered = answers[q.id] != null
                   return (
-                    <div key={q.id} className="p-5">
+                    <div
+                      key={q.id}
+                      id={`q-${q.id}`}
+                      className={cn('p-5', showMissing && isRequired(q) && !answered && 'bg-red-50/50')}
+                    >
                       <div className="mb-3 flex items-start gap-2">
                         <span
                           className={cn(
@@ -252,6 +275,11 @@ export default function RunSurvey() {
                         </span>
                         <p className="text-sm leading-relaxed text-[var(--text)]">
                           {lang === 'en' && q.text_en ? q.text_en : q.text_ar}
+                          {!isRequired(q) && (
+                            <span className="ms-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-[var(--text-muted)]">
+                              {t('take.optional')}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="ps-8">
@@ -260,6 +288,21 @@ export default function RunSurvey() {
                           value={answers[q.id] ?? null}
                           onChange={(v) => setAnswers((prev) => ({ ...prev, [q.id]: v }))}
                         />
+                        {!isRequired(q) && answered && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAnswers((prev) => {
+                                const n = { ...prev }
+                                delete n[q.id]
+                                return n
+                              })
+                            }
+                            className="mt-2 text-xs text-[var(--text-muted)] underline hover:text-brand-700"
+                          >
+                            {lang === 'ar' ? 'مسح اختياري لهذه الفقرة' : 'Clear this answer'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )
@@ -280,10 +323,10 @@ export default function RunSurvey() {
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] glass">
         <Container className="flex items-center justify-between py-3">
           <span className="text-sm text-[var(--text-muted)]">
-            {answeredCount === total ? (
+            {missing.length === 0 ? (
               <span className="font-medium text-green-700">✓ {t('common.responses')}</span>
             ) : (
-              `${total - answeredCount} ${t('common.required')}`
+              `${missing.length} ${t('common.required')}`
             )}
           </span>
           <Button variant="gold" onClick={submit} disabled={submitting}>
