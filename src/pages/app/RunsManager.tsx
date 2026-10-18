@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Link2,
   Lock,
+  Pencil,
   Plus,
   Send,
   Trash2,
@@ -44,6 +45,10 @@ export default function RunsManager() {
   const [copied, setCopied] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
+  const [editRun, setEditRun] = useState<RunView | null>(null)
+  const [win, setWin] = useState({ opens_at: '', closes_at: '', reopen: false })
+  const [winErr, setWinErr] = useState<string | null>(null)
+  const [winSaving, setWinSaving] = useState(false)
 
   const today = new Date().toISOString().slice(0, 10)
   const in30 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10)
@@ -126,6 +131,43 @@ export default function RunsManager() {
   async function setStatus(id: string, status: RunStatus) {
     await supabase.from('survey_runs').update({ status }).eq('id', id)
     setRuns((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)))
+  }
+
+  // التاريخ المحلي بصيغة YYYY-MM-DD (بلا انزياح المنطقة الزمنية الذي تسببه toISOString)
+  const localDate = (iso: string) => {
+    const d = new Date(iso)
+    const p = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  }
+
+  function openEdit(r: RunView) {
+    setWinErr(null)
+    setWin({ opens_at: localDate(r.opens_at), closes_at: localDate(r.closes_at), reopen: false })
+    setEditRun(r)
+  }
+
+  async function saveWindow() {
+    if (!editRun) return
+    setWinErr(null)
+    if (!win.opens_at || !win.closes_at) return setWinErr('حدّد تاريخ البداية والنهاية.')
+    if (win.closes_at < win.opens_at) return setWinErr('تاريخ النهاية يجب ألا يسبق تاريخ البداية.')
+    const opens = new Date(win.opens_at + 'T00:00:00')
+    const closes = new Date(win.closes_at + 'T23:59:59')
+    const patch: Record<string, unknown> = { opens_at: opens.toISOString(), closes_at: closes.toISOString() }
+    if (win.reopen) patch.status = 'open'
+    setWinSaving(true)
+    const { data, error } = await supabase.from('survey_runs').update(patch).eq('id', editRun.id).select('id')
+    setWinSaving(false)
+    if (error) return setWinErr(`تعذّر الحفظ: ${error.message}`)
+    if (!(data ?? []).length) return setWinErr('لا تملك صلاحية تعديل هذا النشر.')
+    setRuns((rs) =>
+      rs.map((x) =>
+        x.id === editRun.id
+          ? { ...x, opens_at: opens.toISOString(), closes_at: closes.toISOString(), status: win.reopen ? 'open' : x.status }
+          : x,
+      ),
+    )
+    setEditRun(null)
   }
 
   async function exportXlsx(r: RunView) {
@@ -214,6 +256,13 @@ export default function RunsManager() {
                     <CalendarClock className="h-3.5 w-3.5" />
                     {new Date(r.opens_at).toLocaleDateString('en-GB')} →{' '}
                     {new Date(r.closes_at).toLocaleDateString('en-GB')}
+                    <button
+                      onClick={() => openEdit(r)}
+                      title="تعديل فترة النشر"
+                      className="ms-1 grid h-6 w-6 place-items-center rounded-md text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-700"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                   </span>
                   <span className="tnum flex items-center gap-1 font-medium text-brand-700">
                     <FileBarChart className="h-3.5 w-3.5" />
@@ -368,6 +417,54 @@ export default function RunsManager() {
             <Button onClick={create}>{lang === 'ar' ? 'نشر' : 'Publish'}</Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit window modal */}
+      <Modal open={editRun !== null} onClose={() => setEditRun(null)} title="تعديل فترة النشر">
+        {editRun && (
+          <div className="space-y-4">
+            <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-800">
+              {lang === 'en' && editRun.survey.title_en ? editRun.survey.title_en : editRun.survey.title_ar} —{' '}
+              {nm(editRun.program)}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('common.from')}>
+                <Input type="date" value={win.opens_at} onChange={(e) => setWin({ ...win, opens_at: e.target.value })} />
+              </Field>
+              <Field label={t('common.to')}>
+                <Input type="date" value={win.closes_at} onChange={(e) => setWin({ ...win, closes_at: e.target.value })} />
+              </Field>
+            </div>
+            <p className="text-xs leading-relaxed text-[var(--text-muted)]">
+              تبقى الروابط ورموز QR المنشورة كما هي، والاستجابات المسجلة لا تتأثر. تنتهي الإتاحة في آخر لحظة من يوم النهاية.
+            </p>
+            {editRun.status !== 'open' && (
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--border)] px-3 py-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={win.reopen}
+                  onChange={(e) => setWin({ ...win, reopen: e.target.checked })}
+                  className="mt-0.5 h-4 w-4 accent-brand-700"
+                />
+                <span>
+                  إعادة فتح النشر الآن
+                  <span className="block text-xs text-[var(--text-muted)]">
+                    الحالة الحالية: {editRun.status === 'closed' ? 'مغلق' : 'مسودة'} — لن يستقبل الاستجابات إلا إذا أُعيد فتحه.
+                  </span>
+                </span>
+              </label>
+            )}
+            {winErr && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{winErr}</p>}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setEditRun(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={saveWindow} disabled={winSaving}>
+                {winSaving ? t('common.loading') : t('common.save')}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* QR modal */}
