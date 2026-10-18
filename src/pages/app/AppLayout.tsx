@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate, Navigate } from 'react-router-dom'
 import {
   BarChart3,
+  ExternalLink,
+  FileText,
   Building2,
   ClipboardList,
   LayoutDashboard,
@@ -14,6 +16,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { useLang } from '@/i18n'
 import { supabaseReady } from '@/lib/supabase'
+import { COURSE_REPORT_URL } from '@/lib/links'
 import { Logo } from '@/components/Logo'
 import { SetupNotice } from '@/components/SetupNotice'
 import { Button, PageLoader } from '@/components/ui'
@@ -79,6 +82,22 @@ export default function AppLayout() {
               </NavLink>
             ))}
         </nav>
+        <div className="px-3 pb-3">
+          <div className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+            {t('nav.tools')}
+          </div>
+          <a
+            href={COURSE_REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t('nav.courseReportsHint')}
+            className="flex items-center gap-3 rounded-xl border border-dashed border-brand-200 bg-brand-50/60 px-3.5 py-2.5 text-sm font-medium text-brand-800 transition-colors hover:bg-brand-50"
+          >
+            <FileText className="h-4.5 w-4.5 shrink-0" />
+            <span className="flex-1 leading-snug">{t('nav.courseReports')}</span>
+            <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-60" />
+          </a>
+        </div>
         <div className="border-t border-[var(--border)] p-3">
           <NavLink
             to="/app/account"
@@ -168,6 +187,17 @@ export default function AppLayout() {
                 {i.label}
               </NavLink>
             ))}
+          <a
+            href={COURSE_REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t('nav.courseReportsHint')}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-brand-700"
+          >
+            <FileText className="h-4 w-4" />
+            {t('nav.courseReports')}
+            <ExternalLink className="h-3 w-3 opacity-60" />
+          </a>
         </nav>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">

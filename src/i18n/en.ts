@@ -18,6 +18,9 @@ export const en: Dict = {
     login: 'Sign in',
     logout: 'Sign out',
     takeSurvey: 'Take a survey',
+    tools: 'Support tools',
+    courseReports: 'Course quality report generator',
+    courseReportsHint: 'A standalone app that turns student course-evaluation reports (PDF) into a Word report. Files are processed temporarily and not stored in this system. The first load may take about a minute.',
   },
   common: {
     college: 'College',

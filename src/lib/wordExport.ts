@@ -12,7 +12,7 @@ import {
   WidthType,
 } from 'docx'
 import { saveAs } from 'file-saver'
-import { fmtMean } from './ratings'
+import { fmtMean, meanToPercent } from './ratings'
 import { parsePlanRows } from './improvementPlan'
 import type { AxisStat, QuestionStat, ReportData } from './report'
 
@@ -95,8 +95,8 @@ function mainTable(data: ReportData, lang: 'ar' | 'en') {
             cell(q.text_ar, { align: AlignmentType.RIGHT }),
             cell(fmtMean(q.meanMale)),
             cell(fmtMean(q.meanFemale)),
-            cell(pct(q.percentAll != null && q.meanMale != null ? q.percentAll : null)),
-            cell(pct(q.percentAll != null && q.meanFemale != null ? q.percentAll : null)),
+            cell(pct(meanToPercent(q.meanMale))),
+            cell(pct(meanToPercent(q.meanFemale))),
             cell(q.band?.labelAr ?? '—', { color: q.band ? undefined : '94A3B8' }),
             cell(q.needsDev ? '✔' : '', { color: GOLD, bold: true }),
           ],
